@@ -19,9 +19,10 @@ def get_reader():
     return reader
 
 def extract_amount(text: str) -> float:
-    """Helper to parse currency values like '45,000.00' or '45000' to float."""
-    # Find all numeric segments, optional commas, optional decimals
-    match = re.search(r'\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\b|\b\d+(?:\.\d+)?\b', text)
+    """Helper to parse currency values like '45,000.00', '45000', or '₹ 45,000' to float."""
+    # Strip common currency symbols before matching
+    cleaned_text = re.sub(r'[₹$€£]|rs\.?|inr\b', '', text.lower()).strip()
+    match = re.search(r'\b\d{1,2}(?:,\d{2})*(?:,\d{3})*(?:\.\d+)?\b|\b\d{1,3}(?:,\d{3})*(?:\.\d+)?\b|\b\d+(?:\.\d+)?\b', cleaned_text)
     if match:
         num_str = match.group(0).replace(',', '')
         try:

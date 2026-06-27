@@ -93,7 +93,58 @@ def run_edge_detection(image_path: str) -> tuple[float, list[str]]:
     except Exception as e:
         return 100.0, ["Edge detection failed due to image format or corruption"]
 
-def analyze_image_forensics(image_path: str) -> tuple[float, float, list[str]]:
+def run_copy_move_detection(image_path: str) -> tuple[float, list[str]]:
+    """
+    Detects copy-move forgery using ORB feature matching.
+    """
+    flags = []
+    score = 100.0
+
+    if cv2 is None or np is None:
+        return score, ["Image forensics unavailable: OpenCV/NumPy not installed"]
+
+    try:
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            return 100.0, ["Image could not be read for copy-move detection"]
+
+        # Resize image for faster processing
+        max_dim = 1000
+        h, w = image.shape
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            image = cv2.resize(image, (int(w * scale), int(h * scale)))
+
+        orb = cv2.ORB_create(nfeatures=1000)
+        keypoints, descriptors = orb.detectAndCompute(image, None)
+
+        if descriptors is None or len(keypoints) < 50:
+            return 100.0, []
+
+        bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+        matches = bf.knnMatch(descriptors, descriptors, k=2)
+
+        good_matches = []
+        for match_tuple in matches:
+            if len(match_tuple) < 2:
+                continue
+            m, n = match_tuple
+            if m.distance < 0.7 * n.distance:
+                if m.queryIdx != m.trainIdx:
+                    pt1 = np.array(keypoints[m.queryIdx].pt)
+                    pt2 = np.array(keypoints[m.trainIdx].pt)
+                    if np.linalg.norm(pt1 - pt2) > 50:
+                        good_matches.append(m)
+
+        if len(good_matches) > 10:
+            score = max(0.0, 100.0 - (len(good_matches) * 2.0))
+            flags.append(f"Detected {len(good_matches)} suspicious cloned features (Copy-Move Forgery)")
+
+        return score, flags
+    except Exception as e:
+        return 100.0, ["Copy-Move detection failed due to image format or corruption"]
+
+def analyze_image_forensics(image_path: str) -> tuple[float, float, float, list[str]]:
     """
     Runs all image forensics tools and returns their scores and flags.
     """
@@ -101,9 +152,10 @@ def analyze_image_forensics(image_path: str) -> tuple[float, float, list[str]]:
     ela_flags = ["High ELA anomaly detected"] if ela_score > 5.0 else []
     
     edge_score, edge_flags = run_edge_detection(image_path)
+    copy_move_score, copy_move_flags = run_copy_move_detection(image_path)
     
     # ela_score is a percentage of anomalous pixels (0 is good, high is bad).
     # Convert ela_score so 100 is good and 0 is bad for consistency.
     normalized_ela_score = max(0.0, 100.0 - (ela_score * 10))
     
-    return normalized_ela_score, edge_score, ela_flags + edge_flags
+    return normalized_ela_score, edge_score, copy_move_score, ela_flags + edge_flags + copy_move_flags

@@ -11,6 +11,7 @@ from .services.image_forensics import analyze_image_forensics
 from .services.pdf_forensics import run_pdf_forensics
 from .services.ocr import run_ocr_analysis
 from .services.scoring import generate_final_score
+from .services.preprocessing import preprocess_pdf_to_image
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -84,6 +85,7 @@ async def upload_document(
 
         ela_score = 100.0
         edge_score = 100.0
+        copy_move_score = 100.0
         pdf_score = 100.0
         ocr_score = 100.0
         flags = []
@@ -92,9 +94,31 @@ async def upload_document(
         if is_pdf:
             pdf_score, pdf_flags = run_pdf_forensics(file_path)
             flags.extend(pdf_flags)
-            notes.append("Image/OCR checks skipped for PDF because PDF-to-image preprocessing is not implemented yet")
+            
+            temp_img_path = preprocess_pdf_to_image(file_path)
+            if temp_img_path and os.path.exists(temp_img_path):
+                img_ela, img_edge, img_cm, image_flags = analyze_image_forensics(temp_img_path)
+                img_ocr, ocr_flags = run_ocr_analysis(temp_img_path)
+                
+                ela_score = img_ela
+                edge_score = img_edge
+                copy_move_score = img_cm
+                ocr_score = img_ocr
+                
+                flags.extend(image_flags)
+                flags.extend(ocr_flags)
+                
+                try:
+                    os.remove(temp_img_path)
+                except Exception:
+                    pass
+            else:
+                notes.append("Image/OCR checks skipped for PDF because conversion failed (PyMuPDF missing, corrupt PDF, or password protected)")
+                pdf_score = 0.0
+                ocr_score = 0.0
+                flags.append("PDF conversion failed (possibly encrypted or corrupt)")
         else:
-            ela_score, edge_score, image_flags = analyze_image_forensics(file_path)
+            ela_score, edge_score, copy_move_score, image_flags = analyze_image_forensics(file_path)
             ocr_score, ocr_flags = run_ocr_analysis(file_path)
             flags.extend(image_flags)
             flags.extend(ocr_flags)
@@ -103,6 +127,7 @@ async def upload_document(
         fraud_score = generate_final_score(
             ela_score=ela_score,
             edge_score=edge_score,
+            copy_move_score=copy_move_score,
             pdf_score=pdf_score,
             ocr_score=ocr_score,
             is_hard_copy=is_hard_copy,
@@ -136,6 +161,7 @@ async def upload_document(
             "scores": {
                 "ela": ela_score,
                 "edge": edge_score,
+                "copy_move": copy_move_score,
                 "pdf": pdf_score,
                 "ocr": ocr_score
             },

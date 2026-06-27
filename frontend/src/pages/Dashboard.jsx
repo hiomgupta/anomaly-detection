@@ -210,11 +210,18 @@ function DashboardContent() {
             <div className="lg:col-span-5 flex flex-col justify-center animate-reveal delay-300 relative z-20 lg:-ml-12 mt-12 lg:mt-24">
               <div className="bg-[var(--canara-navy)] border border-[rgba(244,246,248,0.1)] p-8 shadow-2xl">
                 <p className="tracking-[0.2em] uppercase text-[10px] text-[var(--canara-gold)] mb-2">Confidence Index</p>
-                <div className="flex items-baseline mb-8">
-                  <span className={`display-font text-8xl md:text-9xl leading-none ${results.score < 50 ? 'text-[var(--canara-error)]' : 'text-[var(--canara-light)]'}`}>
-                    {results.score}
-                  </span>
-                  <span className="text-xl ml-2 text-[rgba(244,246,248,0.5)]">%</span>
+                <div className="flex flex-col items-start mb-8">
+                  <div className="flex items-baseline">
+                    <span className={`display-font text-8xl md:text-9xl leading-none ${results.score < 80 ? 'text-[var(--canara-error)]' : 'text-[var(--canara-light)]'}`}>
+                      {results.score}
+                    </span>
+                    <span className="text-xl ml-2 text-[rgba(244,246,248,0.5)]">%</span>
+                  </div>
+                  {results.score < 80 && (
+                    <div className="mt-4 bg-[var(--canara-error)] text-white px-4 py-2 text-xs font-bold uppercase tracking-widest animate-pulse border border-[#ff0000]">
+                      ⚠️ Requires Manual Underwriter Review
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-[rgba(244,246,248,0.1)] pt-8">

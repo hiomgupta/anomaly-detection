@@ -1,10 +1,22 @@
-import easyocr
 import re
 from datetime import datetime
 import dateutil.parser
 
-# Initialize Reader once (avoids reloading model for every request)
-reader = easyocr.Reader(['en'], gpu=False)
+try:
+    import easyocr
+except ImportError:
+    easyocr = None
+
+reader = None
+
+def get_reader():
+    """Lazy-load EasyOCR so the API can start before the OCR model is needed."""
+    global reader
+    if easyocr is None:
+        return None
+    if reader is None:
+        reader = easyocr.Reader(['en'], gpu=False)
+    return reader
 
 def extract_amount(text: str) -> float:
     """Helper to parse currency values like '45,000.00' or '45000' to float."""
@@ -37,7 +49,11 @@ def run_ocr_analysis(image_path: str) -> tuple[float, list[str]]:
     score = 100.0
     
     try:
-        results = reader.readtext(image_path)
+        ocr_reader = get_reader()
+        if ocr_reader is None:
+            return 100.0, ["OCR unavailable: EasyOCR dependency is not installed"]
+
+        results = ocr_reader.readtext(image_path)
         
         if not results:
             return 50.0, ["Low Confidence OCR: No text found"]

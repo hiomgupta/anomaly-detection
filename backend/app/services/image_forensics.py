@@ -1,12 +1,20 @@
-import cv2
-import numpy as np
 import os
 import tempfile
+
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    cv2 = None
+    np = None
 
 def run_ela(image_path: str, quality: int = 95) -> float:
     """
     Error Level Analysis to detect JPEG compression artifacts.
     """
+    if cv2 is None or np is None:
+        return 0.0
+
     try:
         original = cv2.imread(image_path)
         if original is None:
@@ -41,6 +49,9 @@ def run_edge_detection(image_path: str) -> tuple[float, list[str]]:
     """
     flags = []
     score = 100.0  # 100 means no unnatural edges found
+
+    if cv2 is None or np is None:
+        return score, ["Image forensics unavailable: OpenCV/NumPy dependencies are not installed"]
     
     try:
         image = cv2.imread(image_path)

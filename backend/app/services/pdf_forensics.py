@@ -1,5 +1,9 @@
 import os
-from PyPDF2 import PdfReader
+
+try:
+    from PyPDF2 import PdfReader
+except ImportError:
+    PdfReader = None
 
 def run_pdf_forensics(pdf_path: str) -> tuple[float, list[str]]:
     """
@@ -12,6 +16,9 @@ def run_pdf_forensics(pdf_path: str) -> tuple[float, list[str]]:
     try:
         if not os.path.exists(pdf_path):
             return 100.0, ["File not found"]
+
+        if PdfReader is None:
+            return 100.0, ["PDF forensics unavailable: PyPDF2 dependency is not installed"]
 
         # Check for flattened/scanned PDF by looking for text content
         # Scans converted to PDF usually have zero text on the first page

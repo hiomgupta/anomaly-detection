@@ -12,6 +12,7 @@ from .services.pdf_forensics import run_pdf_forensics
 from .services.ocr import run_ocr_analysis
 from .services.scoring import generate_final_score
 from .services.preprocessing import preprocess_pdf_to_image
+from .services.signature_forensics import analyze_signature
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -42,6 +43,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 async def upload_document(
     file: UploadFile = File(...),
     source: DocumentSource = Form(...),
+    document_category: str = Form("General"),
+    is_signed: str = Form("false"),
     db: Session = Depends(get_db)
 ):
     try:
@@ -88,6 +91,7 @@ async def upload_document(
         copy_move_score = 100.0
         pdf_score = 100.0
         ocr_score = 100.0
+        signature_score = None
         flags = []
         notes = []
 
@@ -108,6 +112,11 @@ async def upload_document(
                 flags.extend(image_flags)
                 flags.extend(ocr_flags)
                 
+                if is_signed.lower() == "true":
+                    sig_score, sig_flags = analyze_signature(temp_img_path)
+                    signature_score = sig_score
+                    flags.extend(sig_flags)
+                
                 try:
                     os.remove(temp_img_path)
                 except Exception:
@@ -122,6 +131,10 @@ async def upload_document(
             ocr_score, ocr_flags = run_ocr_analysis(file_path)
             flags.extend(image_flags)
             flags.extend(ocr_flags)
+            if is_signed.lower() == "true":
+                sig_score, sig_flags = analyze_signature(file_path)
+                signature_score = sig_score
+                flags.extend(sig_flags)
             notes.append("PDF structural checks skipped for image upload")
 
         fraud_score = generate_final_score(
@@ -131,6 +144,8 @@ async def upload_document(
             pdf_score=pdf_score,
             ocr_score=ocr_score,
             is_hard_copy=is_hard_copy,
+            signature_score=signature_score,
+            document_category=document_category,
         )
 
         status_value = "flagged" if fraud_score < 80 or flags else "verified"
@@ -163,7 +178,8 @@ async def upload_document(
                 "edge": edge_score,
                 "copy_move": copy_move_score,
                 "pdf": pdf_score,
-                "ocr": ocr_score
+                "ocr": ocr_score,
+                "signature": signature_score
             },
             "flags": flags,
             "notes": notes

@@ -4,7 +4,7 @@ import dateutil.parser
 
 try:
     import easyocr
-except ImportError:
+except (ImportError, OSError):
     easyocr = None
 
 reader = None

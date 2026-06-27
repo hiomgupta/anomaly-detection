@@ -7,6 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
 from .models.document import DocumentRecord, DocumentSource
+from .services.image_forensics import analyze_image_forensics
+from .services.pdf_forensics import run_pdf_forensics
+from .services.ocr import run_ocr_analysis
+from .services.scoring import generate_final_score
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -75,26 +79,68 @@ async def upload_document(
             while chunk := file.file.read(8192):
                 buffer.write(chunk)
                 
+        is_pdf = file.content_type == "application/pdf"
+        is_hard_copy = source == DocumentSource.HARD_COPY
+
+        ela_score = 100.0
+        edge_score = 100.0
+        pdf_score = 100.0
+        ocr_score = 100.0
+        flags = []
+        notes = []
+
+        if is_pdf:
+            pdf_score, pdf_flags = run_pdf_forensics(file_path)
+            flags.extend(pdf_flags)
+            notes.append("Image/OCR checks skipped for PDF because PDF-to-image preprocessing is not implemented yet")
+        else:
+            ela_score, edge_score, image_flags = analyze_image_forensics(file_path)
+            ocr_score, ocr_flags = run_ocr_analysis(file_path)
+            flags.extend(image_flags)
+            flags.extend(ocr_flags)
+            notes.append("PDF structural checks skipped for image upload")
+
+        fraud_score = generate_final_score(
+            ela_score=ela_score,
+            edge_score=edge_score,
+            pdf_score=pdf_score,
+            ocr_score=ocr_score,
+            is_hard_copy=is_hard_copy,
+        )
+
+        status_value = "flagged" if fraud_score < 80 or flags else "verified"
+
         # Initialize Database Record
         db_document = DocumentRecord(
             filename=secure_filename,
             file_size_bytes=file_size,
             content_type=file.content_type,
             source=source,
-            status="uploaded",
-            created_at=datetime.utcnow()
+            fraud_score=fraud_score,
+            flags=json.dumps(flags),
+            status=status_value,
+            created_at=datetime.utcnow(),
+            processed_at=datetime.utcnow()
         )
         db.add(db_document)
         db.commit()
         db.refresh(db_document)
         
-        # For now, return the saved record info
         return {
-            "message": "File uploaded successfully.",
+            "message": "File uploaded and analyzed successfully.",
             "document_id": db_document.id,
             "filename": db_document.filename,
             "source": db_document.source,
-            "status": db_document.status
+            "status": db_document.status,
+            "fraud_score": fraud_score,
+            "scores": {
+                "ela": ela_score,
+                "edge": edge_score,
+                "pdf": pdf_score,
+                "ocr": ocr_score
+            },
+            "flags": flags,
+            "notes": notes
         }
         
     except HTTPException as http_exc:

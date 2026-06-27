@@ -94,15 +94,13 @@ function DashboardContent() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      // Mocking detailed response for UI demonstration since backend currently returns basic info
-      // In production, this would use response.data populated by the detection layers
       const data = response.data;
       setResults({
-        score: data.fraud_score !== undefined ? data.fraud_score : (Math.random() * 100).toFixed(1),
-        flags: data.flags || [
-          "Mathematical OCR mismatch (Gross != Net + Deductions)",
-          "Edge manipulation detected (Aspect ratio anomaly)"
-        ],
+        score: data.fraud_score !== undefined ? Number(data.fraud_score).toFixed(1) : '0.0',
+        flags: data.flags || [],
+        notes: data.notes || [],
+        scores: data.scores || {},
+        status: data.status || 'processed',
         heatmap: data.ela_heatmap || null
       });
     } catch (err) {
@@ -220,6 +218,17 @@ function DashboardContent() {
                 </div>
 
                 <div className="border-t border-[rgba(244,246,248,0.1)] pt-8">
+                  {results.scores && Object.keys(results.scores).length > 0 && (
+                    <div className="mb-8 grid grid-cols-2 gap-3">
+                      {Object.entries(results.scores).map(([name, value]) => (
+                        <div key={name} className="border border-[rgba(244,246,248,0.12)] p-3">
+                          <p className="uppercase tracking-widest text-[10px] text-[rgba(244,246,248,0.5)]">{name}</p>
+                          <p className="display-font text-3xl">{Number(value).toFixed(1)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <h4 className="uppercase tracking-widest text-xs font-bold mb-4">Forensic Anomalies</h4>
                   {results.flags && results.flags.length > 0 ? (
                     <ul className="space-y-4">
@@ -232,6 +241,13 @@ function DashboardContent() {
                     </ul>
                   ) : (
                     <p className="text-[var(--canara-gold)] text-sm italic font-serif">No severe anomalies detected. Document integrity verified.</p>
+                  )}
+                  {results.notes && results.notes.length > 0 && (
+                    <div className="mt-6 text-xs text-[rgba(244,246,248,0.55)] leading-relaxed">
+                      {results.notes.map((note, idx) => (
+                        <p key={idx}>{note}</p>
+                      ))}
+                    </div>
                   )}
                 </div>
 

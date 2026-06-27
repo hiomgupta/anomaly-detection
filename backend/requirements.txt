@@ -6,3 +6,4 @@ opencv-python-headless==4.9.0.80
 easyocr==1.7.1
 PyPDF2==3.0.1
 pydantic==2.6.4
+python-dateutil==2.9.0.post0

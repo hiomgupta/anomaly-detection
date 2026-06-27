@@ -22,7 +22,7 @@ class ErrorBoundary extends React.Component {
           <pre className="bg-[#1a0505] p-6 text-xs max-w-2xl overflow-auto w-full border border-[var(--canara-error)]">
             {this.state.error?.toString()}
           </pre>
-          <button 
+          <button
             onClick={() => window.location.reload()}
             className="mt-12 border border-[var(--canara-error)] px-8 py-4 uppercase text-xs tracking-widest hover:bg-[var(--canara-error)] hover:text-[var(--canara-navy)] transition-colors"
           >
@@ -41,8 +41,8 @@ function ScrambleLoader() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setText(prev => 
-        prev.split('').map(char => 
+      setText(prev =>
+        prev.split('').map(char =>
           Math.random() > 0.8 ? chars[Math.floor(Math.random() * chars.length)] : char
         ).join('')
       );
@@ -68,6 +68,8 @@ function ScrambleLoader() {
 
 function DashboardContent() {
   const [source, setSource] = useState('Digital Upload');
+  const [documentCategory, setDocumentCategory] = useState('General');
+  const [isSigned, setIsSigned] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [systemError, setSystemError] = useState(null);
@@ -77,7 +79,7 @@ function DashboardContent() {
     setLoading(true);
     setSystemError(null);
     setResults(null);
-    
+
     // Create preview
     const objUrl = URL.createObjectURL(file);
     setPreviewUrl(objUrl);
@@ -85,15 +87,17 @@ function DashboardContent() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('source', source);
+    formData.append('document_category', documentCategory);
+    formData.append('is_signed', isSigned.toString());
 
     try {
       // Simulate network delay for cinematic effect if needed
       await new Promise(r => setTimeout(r, 800));
-      
+
       const response = await axios.post('http://localhost:8000/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       const data = response.data;
       setResults({
         score: data.fraud_score !== undefined ? Number(data.fraud_score).toFixed(1) : '0.0',
@@ -119,35 +123,35 @@ function DashboardContent() {
   return (
     <div className="min-h-screen relative p-6 md:p-12 lg:p-20 flex flex-col font-['Syne']">
       <div className="bg-mesh"></div>
-      
+
       {/* Header - Asymmetric Layout */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 relative z-10">
         <div className="animate-reveal">
           <p className="text-[var(--canara-gold)] tracking-[0.3em] uppercase text-xs font-bold mb-4">
-            Canara Bank Intelligence
+            kanara Bank Intelligence
           </p>
           <h1 className="display-font text-5xl md:text-7xl leading-none">
-            Document <br/>
+            Document <br />
             <span className="italic text-[var(--canara-gold)]">Forensics</span>
           </h1>
         </div>
 
         <div className="mt-8 md:mt-0 animate-reveal delay-100">
           <div className="brutalist-toggle">
-            <div 
+            <div
               className="toggle-indicator"
               style={{
                 left: isDigital ? '0' : '50%',
                 width: '50%'
               }}
             ></div>
-            <div 
+            <div
               className={`toggle-option ${isDigital ? 'active' : ''}`}
               onClick={() => setSource('Digital Upload')}
             >
               Digital Upload
             </div>
-            <div 
+            <div
               className={`toggle-option ${!isDigital ? 'active' : ''}`}
               onClick={() => setSource('Hard Copy')}
             >
@@ -160,14 +164,38 @@ function DashboardContent() {
       {/* Main Content Area - Diagonal Flow */}
       <main className="flex-grow relative z-10">
         {systemError && !loading && (
-           <div className="mb-12 p-6 border border-[var(--canara-error)] bg-[rgba(211,47,47,0.05)] text-[var(--canara-error)] animate-reveal">
-             <h4 className="font-bold tracking-widest uppercase mb-2">Processing Error</h4>
-             <p className="text-sm">{systemError}</p>
-           </div>
+          <div className="mb-12 p-6 border border-[var(--canara-error)] bg-[rgba(211,47,47,0.05)] text-[var(--canara-error)] animate-reveal">
+            <h4 className="font-bold tracking-widest uppercase mb-2">Processing Error</h4>
+            <p className="text-sm">{systemError}</p>
+          </div>
         )}
 
         {!results && !loading && (
           <div className="max-w-3xl ml-auto animate-reveal delay-200">
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <select 
+                value={documentCategory}
+                onChange={(e) => setDocumentCategory(e.target.value)}
+                className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/2 uppercase tracking-widest text-xs"
+              >
+                <option value="General" className="bg-[var(--canara-navy)]">General Document</option>
+                <option value="Cheque" className="bg-[var(--canara-navy)]">Cheque</option>
+                <option value="AOD Doc" className="bg-[var(--canara-navy)]">AOD Document</option>
+                <option value="PAN/Aadhaar" className="bg-[var(--canara-navy)]">PAN / Aadhaar</option>
+                <option value="Agreement" className="bg-[var(--canara-navy)]">Agreement / Lease</option>
+                <option value="ITR" className="bg-[var(--canara-navy)]">ITR / Tax Form</option>
+                <option value="Pay Slip" className="bg-[var(--canara-navy)]">Pay Slip</option>
+              </select>
+              <label className="flex items-center gap-3 cursor-pointer border border-[rgba(244,246,248,0.2)] p-3 w-full md:w-1/2 hover:border-[var(--canara-gold)] transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={isSigned}
+                  onChange={(e) => setIsSigned(e.target.checked)}
+                  className="accent-[var(--canara-gold)] w-4 h-4 cursor-pointer"
+                />
+                <span className="uppercase tracking-widest text-xs">Contains Signature</span>
+              </label>
+            </div>
             <UploadZone source={source} onUpload={handleUpload} loading={loading} />
           </div>
         )}
@@ -176,25 +204,25 @@ function DashboardContent() {
 
         {results && !loading && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            
+
             {/* Visualizer - Overlapping grids */}
             <div className="lg:col-span-7 relative animate-reveal delay-100">
               <div className="relative border border-[rgba(244,246,248,0.1)] p-4 bg-[rgba(0,26,51,0.5)]">
                 {previewUrl && (
                   <div className="relative w-full aspect-[3/4] max-h-[70vh] overflow-hidden group">
-                    <img 
-                      src={previewUrl} 
-                      alt="Analyzed Document" 
+                    <img
+                      src={previewUrl}
+                      alt="Analyzed Document"
                       className="w-full h-full object-cover filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 mix-blend-screen"
                     />
                     {/* Simulated Heatmap Overlay */}
                     {results.score < 80 && (
                       <div className="absolute inset-0 bg-gradient-to-tr from-[rgba(211,47,47,0.3)] to-transparent mix-blend-color-burn pointer-events-none"></div>
                     )}
-                    
+
                     {/* Forensic Grid UI Overlay */}
                     <div className="absolute top-0 left-0 w-full h-full border border-[var(--canara-gold)] opacity-20 pointer-events-none grid grid-cols-4 grid-rows-4">
-                      {Array.from({length: 16}).map((_, i) => (
+                      {Array.from({ length: 16 }).map((_, i) => (
                         <div key={i} className="border-[0.5px] border-[rgba(243,146,0,0.2)]"></div>
                       ))}
                     </div>
@@ -227,12 +255,26 @@ function DashboardContent() {
                 <div className="border-t border-[rgba(244,246,248,0.1)] pt-8">
                   {results.scores && Object.keys(results.scores).length > 0 && (
                     <div className="mb-8 grid grid-cols-2 gap-3">
-                      {Object.entries(results.scores).map(([name, value]) => (
-                        <div key={name} className="border border-[rgba(244,246,248,0.12)] p-3">
-                          <p className="uppercase tracking-widest text-[10px] text-[rgba(244,246,248,0.5)]">{name}</p>
-                          <p className="display-font text-3xl">{Number(value).toFixed(1)}</p>
-                        </div>
-                      ))}
+                      {Object.entries(results.scores).map(([name, value]) => {
+                        const SCORE_DETAILS = {
+                          ela: { name: 'ELA Analysis', desc: 'Checks for image manipulation & compression artifacts' },
+                          edge: { name: 'Edge Detection', desc: 'Identifies spliced or inserted text/elements' },
+                          copy_move: { name: 'Copy-Move', desc: 'Detects cloned or duplicated areas' },
+                          pdf: { name: 'PDF Forensics', desc: 'Structural and metadata checks' },
+                          ocr: { name: 'OCR & Logic', desc: 'Text consistency and math verification' },
+                          signature: { name: 'Signature Forensics', desc: 'Analyzes ink strokes and micro-alterations' }
+                        };
+                        const details = SCORE_DETAILS[name] || { name, desc: '' };
+                        return (
+                          <div key={name} className="border border-[rgba(244,246,248,0.12)] p-3 hover:bg-[rgba(244,246,248,0.02)] transition-colors">
+                            <p className="uppercase tracking-widest text-[10px] text-[rgba(244,246,248,0.5)]">{details.name}</p>
+                            <p className="display-font text-3xl">{Number(value).toFixed(1)}</p>
+                            {details.desc && (
+                              <p className="text-[9px] text-[rgba(244,246,248,0.4)] mt-1 leading-tight">{details.desc}</p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -258,7 +300,7 @@ function DashboardContent() {
                   )}
                 </div>
 
-                <button 
+                <button
                   onClick={() => {
                     setResults(null);
                     setPreviewUrl(null);

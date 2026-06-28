@@ -54,7 +54,7 @@ export default function UploadZone({ source, onUpload, loading }) {
   return (
     <div className="relative">
       {error && (
-        <div className="mb-6 p-4 border border-[#D32F2F] bg-[#1a0505] text-[#D32F2F] animate-reveal delay-100 uppercase tracking-widest text-xs font-bold">
+        <div className="mb-6 p-4 rounded-lg border-2 border-[#D32F2F] bg-[#1a0505] text-[#D32F2F] animate-reveal delay-100 uppercase tracking-widest text-xs font-bold shadow-lg">
           [ ERROR ] {error}
         </div>
       )}
@@ -65,8 +65,8 @@ export default function UploadZone({ source, onUpload, loading }) {
         onDragOver={handleDrag}
         onDrop={handleDrop}
         onSubmit={(e) => e.preventDefault()}
-        className={`relative w-full border border-dashed transition-colors duration-500 min-h-[300px] flex flex-col items-center justify-center p-8
-          ${dragActive ? 'border-var(--canara-gold) bg-[rgba(243,146,0,0.05)]' : 'border-[rgba(244,246,248,0.2)] bg-transparent'}
+        className={`relative w-full border-2 border-dashed transition-colors duration-500 min-h-[300px] flex flex-col items-center justify-center p-8 rounded-xl
+          ${dragActive ? 'border-[var(--canara-gold)] bg-[rgba(243,146,0,0.05)]' : 'border-[rgba(244,246,248,0.2)] bg-transparent'}
           ${loading ? 'opacity-50 pointer-events-none' : ''}`}
       >
         <input 
@@ -81,24 +81,24 @@ export default function UploadZone({ source, onUpload, loading }) {
           <h3 className="display-font text-4xl mb-4 italic text-[var(--canara-light)]">
             Deposit Forensics
           </h3>
-          <p className="text-sm tracking-[0.2em] text-[var(--canara-gold)] uppercase mb-8">
+          <p className="text-sm tracking-[0.2em] text-[var(--canara-gold)] uppercase mb-8 font-bold">
             Awaiting {source}
           </p>
 
           <button 
             type="button"
             onClick={() => inputRef.current.click()}
-            className="border border-[var(--canara-gold)] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[var(--canara-gold)] hover:text-[var(--canara-navy)] transition-colors duration-300"
+            className="border-2 border-[var(--canara-gold)] text-[var(--canara-gold)] px-8 py-4 text-xs font-bold uppercase tracking-widest hover:bg-[var(--canara-gold)] hover:text-[var(--canara-navy)] transition-all transform hover:-translate-y-1 shadow-lg rounded"
           >
             Select Document
           </button>
         </div>
 
         {/* Decorative Grid Lines */}
-        <div className="absolute top-4 left-4 w-4 h-4 border-t border-l border-[var(--canara-light)] opacity-30"></div>
-        <div className="absolute top-4 right-4 w-4 h-4 border-t border-r border-[var(--canara-light)] opacity-30"></div>
-        <div className="absolute bottom-4 left-4 w-4 h-4 border-b border-l border-[var(--canara-light)] opacity-30"></div>
-        <div className="absolute bottom-4 right-4 w-4 h-4 border-b border-r border-[var(--canara-light)] opacity-30"></div>
+        <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-[var(--canara-light)] opacity-30 rounded-tl"></div>
+        <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-[var(--canara-light)] opacity-30 rounded-tr"></div>
+        <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-[var(--canara-light)] opacity-30 rounded-bl"></div>
+        <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-[var(--canara-light)] opacity-30 rounded-br"></div>
       </form>
     </div>
   );

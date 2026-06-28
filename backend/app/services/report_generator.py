@@ -164,6 +164,11 @@ def generate_forensic_report(doc) -> str:
                       "using PDF editors (like Adobe Illustrator or iLovePDF) rather than standard scanners "
                       "will be heavily penalized here.")
 
+    if 'metadata' in scores and scores['metadata'] is not None:
+        pdf.add_score_row("EXIF Forensics", scores.get('metadata'),
+                          "Analyzes image EXIF data for signs of tampering, such as hidden "
+                          "editing software signatures (Photoshop, Canva) or modification date mismatches.")
+
     if 'signature' in scores and scores['signature'] is not None:
         pdf.add_score_row("Signature Forensics", scores.get('signature'),
                           "Analyzes ink strokes, pressure, and micro-alterations in the signature block "

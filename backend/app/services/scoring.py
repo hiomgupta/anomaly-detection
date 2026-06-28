@@ -4,6 +4,7 @@ def generate_final_score(
     copy_move_score: float, 
     pdf_score: float, 
     ocr_score: float, 
+    metadata_score: float,
     is_hard_copy: bool,
     signature_score: float = None,
     document_category: str = "General"
@@ -19,16 +20,18 @@ def generate_final_score(
             'copy_move': 0.20,
             'pdf': 0.00,
             'ocr': 0.50,
-            'signature': 0.00
+            'signature': 0.00,
+            'metadata': 0.00  # Hard copies don't have digital metadata
         }
     else:
         weights = {
-            'ela': 0.20,
+            'ela': 0.15,
             'edge': 0.00,
-            'copy_move': 0.20,
+            'copy_move': 0.15,
             'pdf': 0.30,
             'ocr': 0.30,
-            'signature': 0.00
+            'signature': 0.00,
+            'metadata': 0.10
         }
         
     # Adjust weights based on specific categories
@@ -53,7 +56,8 @@ def generate_final_score(
         edge_score * weights['edge'] +
         copy_move_score * weights['copy_move'] +
         pdf_score * weights['pdf'] +
-        ocr_score * weights['ocr']
+        ocr_score * weights['ocr'] +
+        metadata_score * weights['metadata']
     )
     
     if signature_score is not None:

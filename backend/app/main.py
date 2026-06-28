@@ -19,6 +19,8 @@ from .services.scoring import generate_final_score
 from .services.preprocessing import preprocess_pdf_to_image
 from .services.signature_forensics import analyze_signature
 from .services.report_generator import generate_forensic_report
+from .services.metadata_forensics import analyze_image_metadata
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -100,6 +102,7 @@ def upload_document(
         copy_move_score = 100.0
         pdf_score = 100.0
         ocr_score = 100.0
+        metadata_score = 100.0
         signature_score = None
         flags = []
         notes = []
@@ -137,8 +140,10 @@ def upload_document(
                 flags.append("PDF conversion failed (possibly encrypted or corrupt)")
         else:
             ela_score, edge_score, copy_move_score, image_flags = analyze_image_forensics(file_path)
+            metadata_score, meta_flags = analyze_image_metadata(file_path)
             ocr_score, ocr_flags = run_ocr_analysis(file_path)
             flags.extend(image_flags)
+            flags.extend(meta_flags)
             flags.extend(ocr_flags)
             if is_signed.lower() == "true":
                 sig_score, sig_flags = analyze_signature(file_path)
@@ -152,6 +157,7 @@ def upload_document(
             copy_move_score=copy_move_score,
             pdf_score=pdf_score,
             ocr_score=ocr_score,
+            metadata_score=metadata_score,
             is_hard_copy=is_hard_copy,
             signature_score=signature_score,
             document_category=document_category,
@@ -165,6 +171,7 @@ def upload_document(
             "copy_move": copy_move_score,
             "pdf": pdf_score,
             "ocr": ocr_score,
+            "metadata": metadata_score,
             "signature": signature_score
         }
 

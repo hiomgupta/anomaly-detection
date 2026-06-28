@@ -173,7 +173,7 @@ function DashboardContent() {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 relative z-10">
         <div className="animate-reveal">
           <p className="text-[var(--canara-gold)] tracking-[0.3em] uppercase text-xs font-bold mb-4">
-            kanara Bank Intelligence
+            Kanara Bank Intelligence
           </p>
           <h1 className="display-font text-5xl md:text-7xl leading-none">
             Document <br />
@@ -186,7 +186,7 @@ function DashboardContent() {
       {/* Main Content Area - Diagonal Flow */}
       <main className="flex-grow relative z-10">
         {systemError && !loading && (
-          <div className="mb-12 p-6 border border-[var(--canara-error)] bg-[rgba(211,47,47,0.05)] text-[var(--canara-error)] animate-reveal">
+          <div className="mb-12 p-6 rounded-lg border-2 border-[var(--canara-error)] bg-[rgba(211,47,47,0.05)] text-[var(--canara-error)] animate-reveal shadow-lg">
             <h4 className="font-bold tracking-widest uppercase mb-2">Processing Error</h4>
             <p className="text-sm">{systemError}</p>
           </div>
@@ -196,16 +196,16 @@ function DashboardContent() {
           <div className="max-w-4xl ml-auto animate-reveal delay-200">
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               {/* Professional Segmented Control Toggle */}
-              <div className="flex bg-[rgba(244,246,248,0.05)] border border-[rgba(244,246,248,0.2)] p-1 w-full md:w-1/3 rounded-sm">
+              <div className="flex bg-[rgba(244,246,248,0.05)] border border-[rgba(244,246,248,0.2)] p-1 w-full md:w-1/3 rounded-lg">
                 <button
                   onClick={() => setSource('Digital Upload')}
-                  className={`flex-1 text-xs uppercase tracking-widest py-2 transition-all duration-300 ${isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
+                  className={`flex-1 text-xs uppercase tracking-widest py-2 px-2 transition-all duration-300 rounded-md ${isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold shadow-lg' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
                 >
                   Digital Upload
                 </button>
                 <button
                   onClick={() => setSource('Hard Copy')}
-                  className={`flex-1 text-xs uppercase tracking-widest py-2 transition-all duration-300 ${!isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
+                  className={`flex-1 text-xs uppercase tracking-widest py-2 px-2 transition-all duration-300 rounded-md ${!isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold shadow-lg' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
                 >
                   Scanned Copy
                 </button>
@@ -214,7 +214,7 @@ function DashboardContent() {
               <select 
                 value={documentCategory}
                 onChange={(e) => setDocumentCategory(e.target.value)}
-                className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/3 uppercase tracking-widest text-xs rounded-sm"
+                className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/3 uppercase tracking-widest text-xs rounded-lg transition-colors"
               >
                 <option value="General" className="bg-[var(--canara-navy)]">General Document</option>
                 <option value="Cheque" className="bg-[var(--canara-navy)]">Cheque</option>
@@ -224,14 +224,14 @@ function DashboardContent() {
                 <option value="ITR" className="bg-[var(--canara-navy)]">ITR / Tax Form</option>
                 <option value="Pay Slip" className="bg-[var(--canara-navy)]">Pay Slip</option>
               </select>
-              <label className="flex items-center gap-3 cursor-pointer border border-[rgba(244,246,248,0.2)] p-3 w-full md:w-1/3 hover:border-[var(--canara-gold)] transition-colors rounded-sm">
+              <label className="flex items-center gap-3 cursor-pointer bg-transparent border border-[rgba(244,246,248,0.2)] p-3 w-full md:w-1/3 hover:border-[var(--canara-gold)] transition-colors rounded-lg">
                 <input 
                   type="checkbox" 
                   checked={isSigned}
                   onChange={(e) => setIsSigned(e.target.checked)}
                   className="accent-[var(--canara-gold)] w-4 h-4 cursor-pointer"
                 />
-                <span className="uppercase tracking-widest text-xs">Contains Signature</span>
+                <span className="uppercase tracking-widest text-xs text-[var(--canara-light)]">Contains Signature</span>
               </label>
             </div>
             <UploadZone source={source} onUpload={handleUpload} loading={loading} />
@@ -282,101 +282,155 @@ function DashboardContent() {
 
             {/* Results Panel */}
             <div className="lg:col-span-5 flex flex-col justify-center animate-reveal delay-300 relative z-20 lg:-ml-12 mt-12 lg:mt-24">
-              <div className="bg-[var(--canara-navy)] border border-[rgba(244,246,248,0.1)] p-8 shadow-2xl rounded-sm">
-                <p className="tracking-[0.2em] uppercase text-[10px] text-[var(--canara-gold)] mb-2">Confidence Index</p>
-                <div className="flex flex-col items-start mb-8">
-                  <div className="flex items-baseline">
-                    <span className={`display-font text-8xl md:text-9xl leading-none ${results.score < 80 ? 'text-[var(--canara-error)]' : 'text-[var(--canara-light)]'}`}>
-                      {results.score}
-                    </span>
-                    <span className="text-xl ml-2 text-[rgba(244,246,248,0.5)]">%</span>
-                  </div>
+              <div className="bg-[var(--canara-navy)] border border-[rgba(244,246,248,0.1)] p-8 shadow-2xl rounded-xl">
+                
+                {/* 1. Status & Hierarchy Redesign */}
+                <div className="border-b border-[rgba(244,246,248,0.1)] pb-6 mb-6">
+                  {results.score >= 80 ? (
+                    <div className="text-green-500 font-bold uppercase tracking-widest text-2xl md:text-3xl flex items-center gap-3 mb-2">
+                      <span>✓</span> VERIFIED AUTHENTIC
+                    </div>
+                  ) : (
+                    <div className="text-[var(--canara-error)] font-bold uppercase tracking-widest text-2xl md:text-3xl flex items-center gap-3 mb-2">
+                      <span>⚠️</span> TAMPERING DETECTED
+                    </div>
+                  )}
                   
-                  {/* Human in the loop controls */}
-                  {results.status === 'flagged' && (
-                    <div className="mt-6 border border-[#ff0000] p-6 bg-[rgba(255,0,0,0.05)] w-full rounded-sm">
-                      <div className="text-[var(--canara-error)] text-sm font-bold uppercase tracking-widest mb-6">
-                        ⚠️ Requires Manual Underwriter Review
-                      </div>
-                      <div className="flex flex-col md:flex-row gap-4">
-                        <button 
-                          onClick={() => handleReviewDecision('approve')}
-                          disabled={reviewLoading}
-                          className="flex-1 border border-[var(--canara-error)] text-[var(--canara-error)] py-5 text-sm uppercase font-bold tracking-widest hover:bg-[var(--canara-error)] hover:text-white transition-colors rounded-sm"
-                        >
-                          {reviewLoading ? '...' : 'Approve (Override)'}
-                        </button>
-                        <button 
-                          onClick={() => handleReviewDecision('reject')}
-                          disabled={reviewLoading}
-                          className="flex-1 bg-[var(--canara-error)] text-white py-5 text-sm uppercase font-bold tracking-widest hover:bg-red-700 transition-colors rounded-sm"
-                        >
-                          {reviewLoading ? '...' : 'Reject Document'}
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-end mt-6">
+                    <div>
+                      <p className="text-[10px] text-[rgba(244,246,248,0.5)] uppercase tracking-widest mb-1">Manipulation Risk</p>
+                      <p className={`font-bold text-lg uppercase ${results.score >= 80 ? 'text-green-400' : 'text-[var(--canara-error)]'}`}>
+                        {results.score >= 90 ? 'Very Low' : results.score >= 80 ? 'Low' : results.score >= 60 ? 'High' : 'Critical'}
+                      </p>
                     </div>
-                  )}
-                  {results.status === 'verified_override' && (
-                    <div className="mt-4 bg-yellow-600 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-yellow-400 w-full rounded-sm">
-                      ✅ Approved by Underwriter
+                    <div className="text-right">
+                      <p className="text-[10px] text-[rgba(244,246,248,0.5)] uppercase tracking-widest mb-1">Authenticity Score</p>
+                      <p className="display-font text-3xl text-[var(--canara-light)]">
+                        {Number(results.score).toFixed(0)} <span className="text-base text-[rgba(244,246,248,0.4)]">/ 100</span>
+                      </p>
                     </div>
-                  )}
-                  {results.status === 'rejected' && (
-                    <div className="mt-4 bg-red-900 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-red-500 w-full rounded-sm">
-                      ❌ Rejected by Underwriter
+                  </div>
+                </div>
+                
+                {/* Human in the loop controls */}
+                {results.status === 'flagged' && (
+                  <div className="mb-6 border border-[#ff0000] p-6 bg-[rgba(255,0,0,0.05)] w-full rounded-sm">
+                    <div className="text-[var(--canara-error)] text-sm font-bold uppercase tracking-widest mb-6">
+                      ⚠️ Requires Manual Underwriter Review
                     </div>
-                  )}
-                  {results.status === 'verified' && (
-                    <div className="mt-4 bg-green-700 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-green-500 w-full rounded-sm">
-                      ✅ Automatically Verified
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <button 
+                        onClick={() => handleReviewDecision('approve')}
+                        disabled={reviewLoading}
+                        className="flex-1 bg-green-600 text-white py-5 px-2 text-sm md:text-base uppercase font-bold tracking-widest hover:bg-green-500 transition-all transform hover:-translate-y-1 hover:shadow-lg rounded"
+                      >
+                        {reviewLoading ? 'Processing...' : 'Approve (Override)'}
+                      </button>
+                      <button 
+                        onClick={() => handleReviewDecision('reject')}
+                        disabled={reviewLoading}
+                        className="flex-1 bg-red-600 text-white py-5 px-2 text-sm md:text-base uppercase font-bold tracking-widest hover:bg-red-500 transition-all transform hover:-translate-y-1 hover:shadow-lg rounded"
+                      >
+                        {reviewLoading ? 'Processing...' : 'Reject Document'}
+                      </button>
                     </div>
-                  )}
+                  </div>
+                )}
+                {results.status === 'verified_override' && (
+                  <div className="mb-6 bg-yellow-600 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-yellow-400 w-full rounded-sm">
+                    ✅ Approved by Underwriter
+                  </div>
+                )}
+                {results.status === 'rejected' && (
+                  <div className="mb-6 bg-red-900 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-red-500 w-full rounded-sm">
+                    ❌ Rejected by Underwriter
+                  </div>
+                )}
+
+                {/* 2. Checks Performed Summary */}
+                <div className="mb-8">
+                  <p className="tracking-[0.2em] uppercase text-[10px] text-[var(--canara-gold)] mb-4 font-bold">Checks Performed</p>
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                    {results.scores && Object.entries(results.scores).map(([name, value]) => {
+                       const isPass = Number(value) >= 80;
+                       let displayName = name.toUpperCase().replace('_', ' ');
+                       if (name === 'metadata') displayName = 'EXIF FORENSIC';
+                       return (
+                         <div key={`summary-${name}`} className="flex items-center gap-2">
+                           {isPass ? (
+                             <span className="text-green-500">✓</span>
+                           ) : (
+                             <span className="text-[var(--canara-error)]">⚠️</span>
+                           )}
+                           <span className={isPass ? 'text-[var(--canara-light)]' : 'text-[var(--canara-error)] font-bold'}>{displayName}</span>
+                         </div>
+                       )
+                    })}
+                  </div>
                 </div>
 
-                <div className="border-t border-[rgba(244,246,248,0.1)] pt-8">
+                {/* 3. Detailed Metrics with Progress Bars */}
+                <div className="border-t border-[rgba(244,246,248,0.1)] pt-8 space-y-6">
                   {results.scores && Object.keys(results.scores).length > 0 && (
-                    <div className="mb-8 grid grid-cols-2 gap-3">
-                      {Object.entries(results.scores).map(([name, value]) => {
-                        const SCORE_DETAILS = {
-                          ela: { name: 'ELA Analysis', desc: 'Checks for image manipulation & compression artifacts' },
-                          edge: { name: 'Edge Detection', desc: 'Identifies spliced or inserted text/elements' },
-                          copy_move: { name: 'Copy-Move', desc: 'Detects cloned or duplicated areas' },
-                          pdf: { name: 'PDF Forensics', desc: 'Structural and metadata checks' },
-                          ocr: { name: 'OCR & Logic', desc: 'Text consistency and math verification' },
-                          signature: { name: 'Signature Forensics', desc: 'Analyzes ink strokes and micro-alterations' }
-                        };
-                        const details = SCORE_DETAILS[name] || { name, desc: '' };
-                        return (
-                          <div key={name} className="border border-[rgba(244,246,248,0.12)] p-3 hover:bg-[rgba(244,246,248,0.02)] transition-colors rounded-sm">
-                            <p className="uppercase tracking-widest text-[10px] text-[rgba(244,246,248,0.5)]">{details.name}</p>
-                            <p className="display-font text-3xl">{Number(value).toFixed(1)}</p>
-                            {details.desc && (
-                              <p className="text-[9px] text-[rgba(244,246,248,0.4)] mt-1 leading-tight">{details.desc}</p>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <details className="group border border-[rgba(244,246,248,0.12)] rounded-lg p-6 open:bg-[rgba(244,246,248,0.02)] transition-colors cursor-pointer">
+                      <summary className="flex justify-between items-center font-bold list-none text-[var(--canara-light)] uppercase tracking-widest text-sm outline-none">
+                        <span>🔍 Detailed Metrics</span>
+                        <span className="transition-transform duration-300 group-open:rotate-180">
+                          <svg fill="none" height="24" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                        </span>
+                      </summary>
+                      <div className="mt-8 space-y-8 cursor-default">
+                        {Object.entries(results.scores).map(([name, value]) => {
+                          const numValue = Number(value);
+                          const isPass = numValue >= 80;
+                          
+                          const SCORE_DETAILS = {
+                            ela: { name: 'ELA Analysis', passMsg: 'No compression anomalies detected', failMsg: 'Inconsistent compression detected (potential cloning)' },
+                            edge: { name: 'Edge Detection', passMsg: 'No structural splicing detected', failMsg: 'Sharp unnatural boundaries detected' },
+                            copy_move: { name: 'Copy-Move', passMsg: 'No cloned regions found', failMsg: 'Identical pixel regions detected' },
+                            pdf: { name: 'PDF Forensics', passMsg: 'Standard document structure', failMsg: 'Suspicious PDF editor metadata found' },
+                            ocr: { name: 'OCR & Logic', passMsg: 'Text and math logically consistent', failMsg: 'Inconsistencies in extracted text logic' },
+                            signature: { name: 'Signature Forensics', passMsg: 'Signature strokes appear natural', failMsg: 'Potential digital tracing detected' },
+                            metadata: { name: 'EXIF Forensics', passMsg: 'No editing software signatures found', failMsg: 'Editing software / modified dates detected' }
+                          };
+                          const details = SCORE_DETAILS[name] || { name: name.toUpperCase(), passMsg: 'Check passed', failMsg: 'Check failed or flagged' };
+                          
+                          return (
+                            <div key={`detail-${name}`} className="relative">
+                              <div className="flex justify-between items-end mb-2">
+                                <p className="uppercase tracking-widest text-xs font-bold text-[var(--canara-gold)]">{details.name}</p>
+                                <p className={`display-font text-xl ${isPass ? 'text-[var(--canara-light)]' : 'text-[var(--canara-error)]'}`}>{numValue.toFixed(0)}%</p>
+                              </div>
+                              {/* Progress bar */}
+                              <div className="w-full bg-[rgba(244,246,248,0.1)] h-1.5 rounded overflow-hidden mb-2">
+                                <div 
+                                  className={`h-full ${isPass ? 'bg-[var(--canara-light)]' : 'bg-[var(--canara-error)]'}`} 
+                                  style={{ width: `${Math.max(5, numValue)}%` }}
+                                ></div>
+                              </div>
+                              {/* Meaningful text */}
+                              <p className={`text-[10px] uppercase tracking-widest flex items-center gap-1.5 ${isPass ? 'text-[rgba(244,246,248,0.5)]' : 'text-[var(--canara-error)] opacity-90'}`}>
+                                {isPass ? (
+                                  <><span>✓</span> Passed: {details.passMsg}</>
+                                ) : (
+                                  <><span>⚠️</span> Warning: {details.failMsg}</>
+                                )}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
                   )}
-
-                  <h4 className="uppercase tracking-widest text-xs font-bold mb-4">Forensic Anomalies</h4>
-                  {results.flags && results.flags.length > 0 ? (
-                    <ul className="space-y-4">
-                      {results.flags.map((flag, idx) => (
-                        <li key={idx} className="flex items-start text-sm">
-                          <span className="text-[var(--canara-gold)] mr-3 mt-1">▰</span>
-                          <span className="opacity-80">{flag}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-[var(--canara-gold)] text-sm italic font-serif">No severe anomalies detected. Document integrity verified.</p>
-                  )}
+                  
                   {results.notes && results.notes.length > 0 && (
-                    <div className="mt-6 text-xs text-[rgba(244,246,248,0.55)] leading-relaxed">
-                      {results.notes.map((note, idx) => (
-                        <p key={idx}>{note}</p>
-                      ))}
+                    <div className="mt-4 p-5 rounded bg-[rgba(244,246,248,0.02)] border border-[rgba(244,246,248,0.05)] text-xs text-[rgba(244,246,248,0.5)] leading-relaxed">
+                      <p className="uppercase tracking-widest font-bold text-[10px] text-[var(--canara-gold)] mb-3">System Notes</p>
+                      <ul className="space-y-2">
+                        {results.notes.map((note, idx) => (
+                          <li key={idx} className="flex gap-2"><span className="text-[var(--canara-gold)] opacity-50">-</span> {note}</li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                 </div>
@@ -386,9 +440,9 @@ function DashboardContent() {
                     href={`http://localhost:8000/document/${results.document_id}/report`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 bg-[var(--canara-gold)] text-[var(--canara-navy)] text-center font-bold py-6 px-4 text-sm tracking-widest uppercase hover:bg-white transition-colors flex items-center justify-center rounded-sm"
+                    className="flex-1 bg-[var(--canara-gold)] text-[var(--canara-navy)] text-center font-bold py-5 px-4 text-sm tracking-widest uppercase hover:bg-white hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center rounded"
                   >
-                    Download Official Report (PDF)
+                    Download Official Report
                   </a>
                   <button
                     onClick={() => {
@@ -396,7 +450,7 @@ function DashboardContent() {
                       setPreviewUrl(null);
                       setFileType(null);
                     }}
-                    className="flex-1 border border-[var(--canara-light)] py-6 px-4 text-sm tracking-widest uppercase hover:bg-[var(--canara-light)] hover:text-[var(--canara-navy)] transition-colors flex items-center justify-center rounded-sm"
+                    className="flex-1 border-2 border-[var(--canara-light)] text-[var(--canara-light)] py-5 px-4 text-sm tracking-widest uppercase hover:bg-[var(--canara-light)] hover:text-[var(--canara-navy)] hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center rounded"
                   >
                     Process Another
                   </button>

@@ -5,6 +5,41 @@ try:
 except ImportError:
     PdfReader = None
 
+def check_pdf_structure_and_metadata(pdf_path: str) -> tuple[float, list[str]]:
+    flags = []
+    score = 100.0
+    
+    if PdfReader is None:
+        return score, flags
+
+    try:
+        reader = PdfReader(pdf_path)
+        metadata = reader.metadata
+        if not metadata:
+            return score, flags
+            
+        # Check suspicious Producer/Creator
+        producer = str(metadata.get('/Producer', '')).lower()
+        creator = str(metadata.get('/Creator', '')).lower()
+        
+        suspicious_keywords = ['ilovepdf', 'smallpdf', 'pdfescape', 'sejda']
+        if any(keyword in producer or keyword in creator for keyword in suspicious_keywords):
+            flags.append(f"Suspicious PDF Editor detected: {metadata.get('/Producer') or metadata.get('/Creator')}")
+            score -= 30.0
+            
+        # Check date mismatch
+        c_date = str(metadata.get('/CreationDate', ''))
+        m_date = str(metadata.get('/ModDate', ''))
+        
+        if c_date and m_date and c_date != m_date:
+            flags.append(f"Date Mismatch: Creation ({c_date}) != Modification ({m_date})")
+            score -= 20.0
+            
+    except Exception:
+        pass
+        
+    return max(0.0, score), flags
+
 def run_pdf_forensics(pdf_path: str) -> tuple[float, list[str]]:
     """
     Analyze PDF for multiple %%EOF markers and handle flattened/scanned PDFs.
@@ -45,6 +80,12 @@ def run_pdf_forensics(pdf_path: str) -> tuple[float, list[str]]:
         if eof_count > 1:
             flags.append(f"Multiple ({eof_count}) %%EOF markers detected - Potential tampering")
             score = 0.0 # Highly indicative of PDF modification/tampering
+            
+        # Run advanced structure/metadata checks
+        meta_score, meta_flags = check_pdf_structure_and_metadata(pdf_path)
+        flags.extend(meta_flags)
+        # Apply the metadata penalty to the overall score (but don't go below 0)
+        score = max(0.0, score - (100.0 - meta_score))
             
         return score, flags
     except Exception as e:

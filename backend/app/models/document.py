@@ -18,6 +18,7 @@ class DocumentRecord(Base):
     
     fraud_score = Column(Float, nullable=True)
     flags = Column(Text, nullable=True)  # Store JSON or comma-separated string
+    scores = Column(Text, nullable=True) # Store JSON dictionary of individual scores
     
     status = Column(String, default="pending", nullable=False)
     error_message = Column(Text, nullable=True)

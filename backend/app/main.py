@@ -1,8 +1,13 @@
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 import uuid
 import json
 from datetime import datetime
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends, status, BackgroundTasks
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from .database import engine, Base, get_db
@@ -13,11 +18,15 @@ from .services.ocr import run_ocr_analysis
 from .services.scoring import generate_final_score
 from .services.preprocessing import preprocess_pdf_to_image
 from .services.signature_forensics import analyze_signature
+from .services.report_generator import generate_forensic_report
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Intelligent Banking Document Fraud Detection System")
+
+class ReviewRequest(BaseModel):
+    action: str  # "approve" or "reject"
 
 # CORS Setup
 app.add_middleware(
@@ -40,7 +49,7 @@ UPLOAD_DIR = "./uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_document(
+def upload_document(
     file: UploadFile = File(...),
     source: DocumentSource = Form(...),
     document_category: str = Form("General"),
@@ -150,6 +159,15 @@ async def upload_document(
 
         status_value = "flagged" if fraud_score < 80 or flags else "verified"
 
+        final_scores = {
+            "ela": ela_score,
+            "edge": edge_score,
+            "copy_move": copy_move_score,
+            "pdf": pdf_score,
+            "ocr": ocr_score,
+            "signature": signature_score
+        }
+
         # Initialize Database Record
         db_document = DocumentRecord(
             filename=secure_filename,
@@ -158,6 +176,7 @@ async def upload_document(
             source=source,
             fraud_score=fraud_score,
             flags=json.dumps(flags),
+            scores=json.dumps(final_scores),
             status=status_value,
             created_at=datetime.utcnow(),
             processed_at=datetime.utcnow()
@@ -173,14 +192,7 @@ async def upload_document(
             "source": db_document.source,
             "status": db_document.status,
             "fraud_score": fraud_score,
-            "scores": {
-                "ela": ela_score,
-                "edge": edge_score,
-                "copy_move": copy_move_score,
-                "pdf": pdf_score,
-                "ocr": ocr_score,
-                "signature": signature_score
-            },
+            "scores": final_scores,
             "flags": flags,
             "notes": notes
         }
@@ -196,3 +208,40 @@ async def upload_document(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while processing the upload."
         )
+
+@app.post("/document/{document_id}/review")
+def review_document(document_id: int, review: ReviewRequest, db: Session = Depends(get_db)):
+    doc = db.query(DocumentRecord).filter(DocumentRecord.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    if review.action == "approve":
+        doc.status = "verified_override"
+    elif review.action == "reject":
+        doc.status = "rejected"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action")
+        
+    db.commit()
+    return {"message": f"Document {review.action}d successfully", "status": doc.status}
+
+def remove_file(path: str):
+    try:
+        os.remove(path)
+    except Exception:
+        pass
+
+@app.get("/document/{document_id}/report", response_class=FileResponse)
+def get_document_report(document_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    doc = db.query(DocumentRecord).filter(DocumentRecord.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+        
+    pdf_path = generate_forensic_report(doc)
+    background_tasks.add_task(remove_file, pdf_path)
+    
+    return FileResponse(
+        path=pdf_path,
+        media_type='application/pdf',
+        filename=f"Forensic_Report_{doc.filename}.pdf"
+    )

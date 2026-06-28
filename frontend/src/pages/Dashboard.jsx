@@ -36,23 +36,51 @@ class ErrorBoundary extends React.Component {
 }
 
 function ScrambleLoader() {
-  const [text, setText] = useState('INITIATING ANALYSIS');
+  const steps = [
+    'INITIATING SECURE CONNECTION',
+    'EXTRACTING DOCUMENT METADATA',
+    'RUNNING STRUCTURAL FORENSICS',
+    'ANALYZING PIXEL NOISE (ELA)',
+    'EXECUTING OCR LOGIC CHECKS',
+    'CALCULATING FRAUD INDEX'
+  ];
+  const [stepIdx, setStepIdx] = useState(0);
+  const [text, setText] = useState(steps[0]);
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*';
 
+  // Step progression
   useEffect(() => {
     const interval = setInterval(() => {
-      setText(prev =>
-        prev.split('').map(char =>
-          Math.random() > 0.8 ? chars[Math.floor(Math.random() * chars.length)] : char
-        ).join('')
-      );
-    }, 50);
+      setStepIdx(prev => Math.min(prev + 1, steps.length - 1));
+    }, 1500); // 1.5s per step
     return () => clearInterval(interval);
-  }, []);
+  }, [steps.length]);
+
+  // Scramble effect for new text
+  useEffect(() => {
+    const target = steps[stepIdx];
+    const startTime = Date.now();
+    const duration = 800;
+    
+    const scrambleInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      setText(target.split('').map((char) => {
+        if (char === ' ') return ' ';
+        return Math.random() < progress ? char : chars[Math.floor(Math.random() * chars.length)];
+      }).join(''));
+      
+      if (progress === 1) clearInterval(scrambleInterval);
+    }, 40);
+    
+    return () => clearInterval(scrambleInterval);
+  }, [stepIdx]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
-      <div className="loading-scramble mb-4">{text}</div>
+      <div className="text-[var(--canara-gold)] text-[10px] mb-2 tracking-[0.3em] uppercase">Procedure {stepIdx + 1}/{steps.length}</div>
+      <div className="loading-scramble mb-4 text-center min-w-[300px] h-8">{text}</div>
       <div className="w-64 h-[1px] bg-[rgba(244,246,248,0.2)] relative">
         <div className="absolute top-0 left-0 h-full bg-[var(--canara-gold)] w-1/3 animate-[slide_1.5s_infinite_ease-in-out]"></div>
       </div>
@@ -74,6 +102,20 @@ function DashboardContent() {
   const [results, setResults] = useState(null);
   const [systemError, setSystemError] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [fileType, setFileType] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  const handleReviewDecision = async (action) => {
+    setReviewLoading(true);
+    try {
+      await axios.post(`http://localhost:8000/document/${results.document_id}/review`, { action });
+      setResults(prev => ({ ...prev, status: action === 'approve' ? 'verified_override' : 'rejected' }));
+    } catch (err) {
+      alert("Failed to submit review. Server might be unreachable.");
+    } finally {
+      setReviewLoading(false);
+    }
+  };
 
   const handleUpload = async (file) => {
     setLoading(true);
@@ -83,6 +125,7 @@ function DashboardContent() {
     // Create preview
     const objUrl = URL.createObjectURL(file);
     setPreviewUrl(objUrl);
+    setFileType(file.type);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -91,15 +134,17 @@ function DashboardContent() {
     formData.append('is_signed', isSigned.toString());
 
     try {
-      // Simulate network delay for cinematic effect if needed
-      await new Promise(r => setTimeout(r, 800));
-
-      const response = await axios.post('http://localhost:8000/upload', formData, {
+      // Run the upload request and the cinematic delay concurrently
+      const uploadPromise = axios.post('http://localhost:8000/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      const delayPromise = new Promise(r => setTimeout(r, 8500));
+
+      const [response] = await Promise.all([uploadPromise, delayPromise]);
 
       const data = response.data;
       setResults({
+        document_id: data.document_id,
         score: data.fraud_score !== undefined ? Number(data.fraud_score).toFixed(1) : '0.0',
         flags: data.flags || [],
         notes: data.notes || [],
@@ -136,29 +181,6 @@ function DashboardContent() {
           </h1>
         </div>
 
-        <div className="mt-8 md:mt-0 animate-reveal delay-100">
-          <div className="brutalist-toggle">
-            <div
-              className="toggle-indicator"
-              style={{
-                left: isDigital ? '0' : '50%',
-                width: '50%'
-              }}
-            ></div>
-            <div
-              className={`toggle-option ${isDigital ? 'active' : ''}`}
-              onClick={() => setSource('Digital Upload')}
-            >
-              Digital Upload
-            </div>
-            <div
-              className={`toggle-option ${!isDigital ? 'active' : ''}`}
-              onClick={() => setSource('Hard Copy')}
-            >
-              Scanned Copy
-            </div>
-          </div>
-        </div>
       </header>
 
       {/* Main Content Area - Diagonal Flow */}
@@ -171,12 +193,28 @@ function DashboardContent() {
         )}
 
         {!results && !loading && (
-          <div className="max-w-3xl ml-auto animate-reveal delay-200">
+          <div className="max-w-4xl ml-auto animate-reveal delay-200">
             <div className="flex flex-col md:flex-row gap-4 mb-6">
+              {/* Professional Segmented Control Toggle */}
+              <div className="flex bg-[rgba(244,246,248,0.05)] border border-[rgba(244,246,248,0.2)] p-1 w-full md:w-1/3 rounded-sm">
+                <button
+                  onClick={() => setSource('Digital Upload')}
+                  className={`flex-1 text-xs uppercase tracking-widest py-2 transition-all duration-300 ${isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
+                >
+                  Digital Upload
+                </button>
+                <button
+                  onClick={() => setSource('Hard Copy')}
+                  className={`flex-1 text-xs uppercase tracking-widest py-2 transition-all duration-300 ${!isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
+                >
+                  Scanned Copy
+                </button>
+              </div>
+
               <select 
                 value={documentCategory}
                 onChange={(e) => setDocumentCategory(e.target.value)}
-                className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/2 uppercase tracking-widest text-xs"
+                className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/3 uppercase tracking-widest text-xs rounded-sm"
               >
                 <option value="General" className="bg-[var(--canara-navy)]">General Document</option>
                 <option value="Cheque" className="bg-[var(--canara-navy)]">Cheque</option>
@@ -186,7 +224,7 @@ function DashboardContent() {
                 <option value="ITR" className="bg-[var(--canara-navy)]">ITR / Tax Form</option>
                 <option value="Pay Slip" className="bg-[var(--canara-navy)]">Pay Slip</option>
               </select>
-              <label className="flex items-center gap-3 cursor-pointer border border-[rgba(244,246,248,0.2)] p-3 w-full md:w-1/2 hover:border-[var(--canara-gold)] transition-colors">
+              <label className="flex items-center gap-3 cursor-pointer border border-[rgba(244,246,248,0.2)] p-3 w-full md:w-1/3 hover:border-[var(--canara-gold)] transition-colors rounded-sm">
                 <input 
                   type="checkbox" 
                   checked={isSigned}
@@ -209,12 +247,20 @@ function DashboardContent() {
             <div className="lg:col-span-7 relative animate-reveal delay-100">
               <div className="relative border border-[rgba(244,246,248,0.1)] p-4 bg-[rgba(0,26,51,0.5)]">
                 {previewUrl && (
-                  <div className="relative w-full aspect-[3/4] max-h-[70vh] overflow-hidden group">
-                    <img
-                      src={previewUrl}
-                      alt="Analyzed Document"
-                      className="w-full h-full object-cover filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 mix-blend-screen"
-                    />
+                  <div className="relative w-full aspect-[3/4] max-h-[70vh] overflow-hidden group bg-white/5 rounded-sm">
+                    {fileType === 'application/pdf' ? (
+                      <iframe 
+                        src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                        title="Analyzed Document"
+                        className="w-full h-full border-0 filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 mix-blend-screen pointer-events-none"
+                      />
+                    ) : (
+                      <img
+                        src={previewUrl}
+                        alt="Analyzed Document"
+                        className="w-full h-full object-cover filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 mix-blend-screen"
+                      />
+                    )}
                     {/* Simulated Heatmap Overlay */}
                     {results.score < 80 && (
                       <div className="absolute inset-0 bg-gradient-to-tr from-[rgba(211,47,47,0.3)] to-transparent mix-blend-color-burn pointer-events-none"></div>
@@ -236,7 +282,7 @@ function DashboardContent() {
 
             {/* Results Panel */}
             <div className="lg:col-span-5 flex flex-col justify-center animate-reveal delay-300 relative z-20 lg:-ml-12 mt-12 lg:mt-24">
-              <div className="bg-[var(--canara-navy)] border border-[rgba(244,246,248,0.1)] p-8 shadow-2xl">
+              <div className="bg-[var(--canara-navy)] border border-[rgba(244,246,248,0.1)] p-8 shadow-2xl rounded-sm">
                 <p className="tracking-[0.2em] uppercase text-[10px] text-[var(--canara-gold)] mb-2">Confidence Index</p>
                 <div className="flex flex-col items-start mb-8">
                   <div className="flex items-baseline">
@@ -245,9 +291,44 @@ function DashboardContent() {
                     </span>
                     <span className="text-xl ml-2 text-[rgba(244,246,248,0.5)]">%</span>
                   </div>
-                  {results.score < 80 && (
-                    <div className="mt-4 bg-[var(--canara-error)] text-white px-4 py-2 text-xs font-bold uppercase tracking-widest animate-pulse border border-[#ff0000]">
-                      ⚠️ Requires Manual Underwriter Review
+                  
+                  {/* Human in the loop controls */}
+                  {results.status === 'flagged' && (
+                    <div className="mt-6 border border-[#ff0000] p-6 bg-[rgba(255,0,0,0.05)] w-full rounded-sm">
+                      <div className="text-[var(--canara-error)] text-sm font-bold uppercase tracking-widest mb-6">
+                        ⚠️ Requires Manual Underwriter Review
+                      </div>
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <button 
+                          onClick={() => handleReviewDecision('approve')}
+                          disabled={reviewLoading}
+                          className="flex-1 border border-[var(--canara-error)] text-[var(--canara-error)] py-5 text-sm uppercase font-bold tracking-widest hover:bg-[var(--canara-error)] hover:text-white transition-colors rounded-sm"
+                        >
+                          {reviewLoading ? '...' : 'Approve (Override)'}
+                        </button>
+                        <button 
+                          onClick={() => handleReviewDecision('reject')}
+                          disabled={reviewLoading}
+                          className="flex-1 bg-[var(--canara-error)] text-white py-5 text-sm uppercase font-bold tracking-widest hover:bg-red-700 transition-colors rounded-sm"
+                        >
+                          {reviewLoading ? '...' : 'Reject Document'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {results.status === 'verified_override' && (
+                    <div className="mt-4 bg-yellow-600 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-yellow-400 w-full rounded-sm">
+                      ✅ Approved by Underwriter
+                    </div>
+                  )}
+                  {results.status === 'rejected' && (
+                    <div className="mt-4 bg-red-900 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-red-500 w-full rounded-sm">
+                      ❌ Rejected by Underwriter
+                    </div>
+                  )}
+                  {results.status === 'verified' && (
+                    <div className="mt-4 bg-green-700 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-green-500 w-full rounded-sm">
+                      ✅ Automatically Verified
                     </div>
                   )}
                 </div>
@@ -266,7 +347,7 @@ function DashboardContent() {
                         };
                         const details = SCORE_DETAILS[name] || { name, desc: '' };
                         return (
-                          <div key={name} className="border border-[rgba(244,246,248,0.12)] p-3 hover:bg-[rgba(244,246,248,0.02)] transition-colors">
+                          <div key={name} className="border border-[rgba(244,246,248,0.12)] p-3 hover:bg-[rgba(244,246,248,0.02)] transition-colors rounded-sm">
                             <p className="uppercase tracking-widest text-[10px] text-[rgba(244,246,248,0.5)]">{details.name}</p>
                             <p className="display-font text-3xl">{Number(value).toFixed(1)}</p>
                             {details.desc && (
@@ -300,15 +381,26 @@ function DashboardContent() {
                   )}
                 </div>
 
-                <button
-                  onClick={() => {
-                    setResults(null);
-                    setPreviewUrl(null);
-                  }}
-                  className="mt-12 w-full border border-[var(--canara-light)] py-4 text-xs tracking-widest uppercase hover:bg-[var(--canara-light)] hover:text-[var(--canara-navy)] transition-colors"
-                >
-                  Process Another
-                </button>
+                <div className="mt-12 flex flex-col xl:flex-row gap-4 w-full">
+                  <a
+                    href={`http://localhost:8000/document/${results.document_id}/report`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 bg-[var(--canara-gold)] text-[var(--canara-navy)] text-center font-bold py-6 px-4 text-sm tracking-widest uppercase hover:bg-white transition-colors flex items-center justify-center rounded-sm"
+                  >
+                    Download Official Report (PDF)
+                  </a>
+                  <button
+                    onClick={() => {
+                      setResults(null);
+                      setPreviewUrl(null);
+                      setFileType(null);
+                    }}
+                    className="flex-1 border border-[var(--canara-light)] py-6 px-4 text-sm tracking-widest uppercase hover:bg-[var(--canara-light)] hover:text-[var(--canara-navy)] transition-colors flex items-center justify-center rounded-sm"
+                  >
+                    Process Another
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -8,3 +8,4 @@ PyPDF2
 pydantic
 python-dateutil
 PyMuPDF
+fpdf2

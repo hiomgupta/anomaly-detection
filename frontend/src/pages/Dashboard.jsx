@@ -108,7 +108,8 @@ function DashboardContent() {
   const handleReviewDecision = async (action) => {
     setReviewLoading(true);
     try {
-      await axios.post(`http://localhost:8000/document/${results.document_id}/review`, { action });
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      await axios.post(`${apiUrl}/document/${results.document_id}/review`, { action });
       setResults(prev => ({ ...prev, status: action === 'approve' ? 'verified_override' : 'rejected' }));
     } catch (err) {
       alert("Failed to submit review. Server might be unreachable.");
@@ -135,7 +136,8 @@ function DashboardContent() {
 
     try {
       // Run the upload request and the cinematic delay concurrently
-      const uploadPromise = axios.post('http://localhost:8000/upload', formData, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const uploadPromise = axios.post(`${apiUrl}/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const delayPromise = new Promise(r => setTimeout(r, 8500));
@@ -332,7 +334,7 @@ function DashboardContent() {
             </span>
           )}
           <a
-            href={`http://localhost:8000/document/${results?.document_id}/report`}
+            href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/document/${results?.document_id}/report`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ background: 'var(--canara-gold)', color: 'var(--canara-navy)', padding: '8px 20px', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px', textDecoration: 'none', transition: 'all 0.2s' }}

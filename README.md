@@ -1,48 +1,57 @@
-# Intelligent Banking Document Fraud Detection System
+# Kanara Bank Intelligence: Document Forensics
 
-This repository contains the full-stack implementation of the Canara Bank Hackathon project. The system uses a FastAPI backend with Python-based forensic modules (EasyOCR, OpenCV, PyPDF2) and a maximalist, atmospheric React frontend.
+A real-time, AI-driven document authentication and fraud detection system designed for banking associates. It analyzes uploaded documents (both digital PDFs and scanned images) using deep forensic techniques to instantly detect tampering, forgery, and malicious payloads.
 
-## 🚀 Running the Application Locally
+## 🏗️ Architecture
 
-Follow these exact steps to run the full-stack application on your local machine (Windows).
-
-### 1. Backend Setup
-
-Open a terminal and navigate to the `backend` directory. We will create a virtual environment, install the dependencies, and start the FastAPI server.
-
-```bash
-# Navigate to the backend directory
-cd backend
-
-# Create a virtual environment
-python -m venv venv
-
-# Activate the virtual environment
-.\venv\Scripts\activate
-
-# Install the required Python packages (including OpenCV headless & EasyOCR)
-pip install -r requirements.txt
-
-# Start the FastAPI server on port 8000
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```mermaid
+graph TD
+    %% Styling
+    classDef client fill:#001a33,stroke:#f39200,stroke-width:2px,color:#fff
+    classDef api fill:#f39200,stroke:#001a33,stroke-width:2px,color:#000
+    classDef engine fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#fff
+    classDef db fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff
+    
+    A[React Dashboard<br><i>Frontend UI</i>]:::client -->|Uploads Document| B(FastAPI Server<br><i>Backend</i>):::api
+    
+    B --> C{Forensic Engine}:::engine
+    
+    C -->|Images| D[Image Forensics<br><i>ELA, Edge, Copy-Move</i>]
+    C -->|PDFs| E[Deep PDF Analysis<br><i>Structural Integrity, Malware</i>]
+    C -->|Text/Signatures| F[OCR & Content Logic<br><i>EasyOCR, Object Detection</i>]
+    
+    D --> G[Scoring Algorithm]
+    E --> G
+    F --> G
+    
+    G -->|Ensemble Fraud Score| B
+    B -->|Persists Data| H[(SQLite Database<br><i>Audit & Deduplication</i>)]:::db
+    B -->|JSON Analysis| A
 ```
 
-> **Database Note**: The SQLite database (`bank_audit.db`) is configured to auto-generate in the root of the backend folder the very first time an API request is made. No manual migration or setup is required.
+## ✨ Key Features
 
-### 2. Frontend Setup
+- **Multi-Modal Forensics**: Runs Error Level Analysis (ELA), edge detection, and copy-move forgery detection on images to find spliced pixels.
+- **Deep PDF Inspection**: Scans for embedded malware (e.g. URI payload links), incremental update manipulation (`%%EOF` markers), and suspicious PDF editor metadata.
+- **Smart Deduplication**: Instantly flags re-uploaded documents by matching SHA-256 hashes to prevent processing duplicate fraud attempts.
+- **Associate-First UI**: Features an enterprise dashboard with visual heatmaps, detailed metric breakdowns, and a strict "Hard-Fail" critical error screen.
 
-Open a **new, separate terminal** (keep the backend server running) and navigate to the `frontend` directory.
+## 🚀 Getting Started
 
-```bash
-# Navigate to the frontend directory
-cd frontend
+1. **Start the application**:
+   Run the included startup script from the project root:
+   ```powershell
+   .\start.ps1
+   ```
+   *(This script will automatically install dependencies, start the backend on port 8000, and launch the React frontend).*
 
-# Install the Node dependencies
-npm install
+2. **See it in Action (Testing)**:
+   Use the included script to generate a highly-malicious PDF payload for testing:
+   ```powershell
+   cd backend
+   python create_malicious_pdf.py
+   ```
+   Upload the generated `malicious_test_doc.pdf` to the dashboard to watch the system instantly intercept the payload, tank the score to 0, and trigger a critical rejection!
 
-# Start the React development server (typically runs on port 3000 or 5173 depending on your bundler)
-npm start 
-# OR use `npm run dev` if you set up the project with Vite
-```
-
-Once the development server is running, open your browser and navigate to `http://localhost:3000` (or the local URL provided in the terminal output) to access the Canara Bank Intelligence Dashboard.
+---
+*Built for the Kanara Bank Fraud Intelligence Team.*

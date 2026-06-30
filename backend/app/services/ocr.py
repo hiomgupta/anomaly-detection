@@ -78,35 +78,51 @@ def run_ocr_analysis(image_path: str) -> tuple[float, list[str]]:
         net = None
         deductions = None
         
+        found_gross = False
+        found_net = False
+        found_deductions = False
+        
         for idx, text in enumerate(text_blocks):
             t_lower = text.lower()
             if 'gross' in t_lower:
+                found_gross = True
                 # Look at next few blocks for the amount
-                for j in range(1, 4):
+                for j in range(1, 8):
                     if idx + j < len(text_blocks):
                         amt = extract_amount(text_blocks[idx + j])
                         if amt is not None:
                             gross = amt
                             break
             if 'net' in t_lower and 'weight' not in t_lower:
-                for j in range(1, 4):
+                found_net = True
+                for j in range(1, 8):
                     if idx + j < len(text_blocks):
                         amt = extract_amount(text_blocks[idx + j])
                         if amt is not None:
                             net = amt
                             break
             if 'deduction' in t_lower:
-                for j in range(1, 4):
+                found_deductions = True
+                for j in range(1, 8):
                     if idx + j < len(text_blocks):
                         amt = extract_amount(text_blocks[idx + j])
                         if amt is not None:
                             deductions = amt
                             break
 
-        if gross is not None and net is not None and deductions is not None:
-            if abs(gross - (net + deductions)) > 0.01:
-                flags.append(f"Math Inconsistency: Net ({net}) + Deductions ({deductions}) != Gross ({gross})")
-                score -= 30.0
+        if found_gross or found_net or found_deductions:
+            if gross is not None and net is not None and deductions is not None:
+                if abs(gross - (net + deductions)) > 0.01:
+                    flags.append(f"Math Inconsistency: Net ({net}) + Deductions ({deductions}) != Gross ({gross})")
+                    score -= 30.0
+            else:
+                missing = []
+                if found_gross and gross is None: missing.append("Gross")
+                if found_net and net is None: missing.append("Net")
+                if found_deductions and deductions is None: missing.append("Deductions")
+                if missing:
+                    flags.append(f"Missing Math Components: Found labels for {', '.join(missing)} but no nearby amounts")
+                    score -= 10.0
 
         # Chronology Check
         issue_date = None
@@ -137,4 +153,6 @@ def run_ocr_analysis(image_path: str) -> tuple[float, list[str]]:
         return max(0.0, score), flags
 
     except Exception as e:
-        return 50.0, ["Low Confidence OCR: Extraction failed unexpectedly"]
+        import logging
+        logging.error(f"OCR analysis failed: {e}")
+        return 50.0, [f"Low Confidence OCR: Extraction failed unexpectedly ({str(e)})"]

@@ -71,6 +71,55 @@ def generate_tampered_pdf(input_path: str, output_path: str):
         
     print("Done: Fake PDF metadata injected (iLovePDF & Date Mismatch).")
 
+def generate_tampered_pdf_hidden_text(output_path: str):
+    try:
+        import fitz
+    except ImportError:
+        print("PyMuPDF (fitz) not installed. Skipping hidden text forgery generation.")
+        return
+        
+    print(f"Generating tampered PDF with hidden text -> {output_path}")
+    doc = fitz.open()
+    page = doc.new_page()
+    
+    # Insert legitimate text
+    rect1 = fitz.Rect(50, 50, 200, 100)
+    page.insert_textbox(rect1, "Payee: John Doe", fontsize=12, color=(0, 0, 0))
+    
+    # "White out" the original text
+    rect2 = fitz.Rect(45, 45, 205, 105)
+    page.draw_rect(rect2, color=(1, 1, 1), fill=(1, 1, 1))
+    
+    # Draw fake text exactly where the white box is (overlapping the original text)
+    rect3 = fitz.Rect(50, 50, 200, 100)
+    page.insert_textbox(rect3, "Payee: Evil Corp", fontsize=12, color=(0, 0, 0))
+    
+    doc.save(output_path)
+    doc.close()
+    print("Done: Fake PDF with overlapping/hidden text generated.")
+
+def generate_tampered_pdf_malicious_uri(output_path: str):
+    try:
+        import fitz
+    except ImportError:
+        print("PyMuPDF (fitz) not installed. Skipping malicious URI forgery generation.")
+        return
+        
+    print(f"Generating tampered PDF with malicious URI -> {output_path}")
+    doc = fitz.open()
+    page = doc.new_page()
+    
+    page.insert_text((50, 50), "Click here to download your statement.")
+    
+    # Insert malicious link
+    rect = fitz.Rect(50, 35, 250, 55)
+    link = {"kind": fitz.LINK_URI, "uri": "javascript:app.alert('Hacked!');", "from": rect}
+    page.insert_link(link)
+    
+    doc.save(output_path)
+    doc.close()
+    print("Done: Fake PDF with malicious JavaScript URI generated.")
+
 if __name__ == "__main__":
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     demo_dir = os.path.join(base_dir, "demo_files")
@@ -94,5 +143,8 @@ if __name__ == "__main__":
     generate_tampered_image(dummy_img, os.path.join(demo_dir, "tampered_document.jpg"))
     if os.path.exists(dummy_pdf):
         generate_tampered_pdf(dummy_pdf, os.path.join(demo_dir, "tampered_document.pdf"))
+        
+    generate_tampered_pdf_hidden_text(os.path.join(demo_dir, "tampered_hidden_text.pdf"))
+    generate_tampered_pdf_malicious_uri(os.path.join(demo_dir, "tampered_malicious_uri.pdf"))
         
     print("All forgeries generated successfully. You can upload these to the Dashboard to test the new Forensics engines!")

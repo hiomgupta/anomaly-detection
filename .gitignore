@@ -1,8 +1,36 @@
+# Environment
+.env
 .venv/
+venv/
+backend/venv/
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Databases & Uploads
+*.db
+*.sqlite3
 bank_audit.db
 uploads/
+backend/uploads/
+malicious_test_doc.pdf
 
+# Node/React
 frontend/node_modules/
 frontend/dist/
+frontend/.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db

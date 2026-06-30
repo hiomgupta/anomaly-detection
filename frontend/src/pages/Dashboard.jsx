@@ -61,19 +61,19 @@ function ScrambleLoader() {
     const target = steps[stepIdx];
     const startTime = Date.now();
     const duration = 800;
-    
+
     const scrambleInterval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       setText(target.split('').map((char) => {
         if (char === ' ') return ' ';
         return Math.random() < progress ? char : chars[Math.floor(Math.random() * chars.length)];
       }).join(''));
-      
+
       if (progress === 1) clearInterval(scrambleInterval);
     }, 40);
-    
+
     return () => clearInterval(scrambleInterval);
   }, [stepIdx]);
 
@@ -150,14 +150,14 @@ function DashboardContent() {
         notes: data.notes || [],
         scores: data.scores || {},
         status: data.status || 'processed',
-        heatmap: data.ela_heatmap || null
+        heatmap: data.ela_heatmap || null,
+        reason_codes: data.reason_codes || [],
+        anomaly_score: data.anomaly_score ?? null,
+        file_hash: data.file_hash || null,
       });
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || "Unknown error occurred";
       setSystemError(errorMsg);
-      if (err.response?.status >= 500) {
-        throw new Error(errorMsg); // Trigger Error Boundary
-      }
     } finally {
       setLoading(false);
     }
@@ -165,57 +165,77 @@ function DashboardContent() {
 
   const isDigital = source === 'Digital Upload';
 
-  return (
-    <div className="min-h-screen relative p-6 md:p-12 lg:p-20 flex flex-col font-['Syne']">
-      <div className="bg-mesh"></div>
+  const SCORE_META = {
+    ela: { label: 'Error Level Analysis', passMsg: 'No compression anomalies', failMsg: 'Compression inconsistency detected' },
+    edge: { label: 'Edge Detection', passMsg: 'No structural splicing', failMsg: 'Unnatural boundaries detected' },
+    copy_move: { label: 'Copy-Move Detection', passMsg: 'No cloned regions found', failMsg: 'Cloned pixel regions detected' },
+    pdf: { label: 'PDF Structure', passMsg: 'Standard document structure', failMsg: 'Suspicious PDF editor metadata' },
+    ocr: { label: 'OCR Analysis', passMsg: 'Text logic consistent', failMsg: 'OCR inconsistencies detected' },
+    signature: { label: 'Signature', passMsg: 'Signature appears natural', failMsg: 'Signature could not be verified' },
+    metadata: { label: 'EXIF Forensics', passMsg: 'No editing software found', failMsg: 'Editing software / date mismatch' },
+  };
 
-      {/* Header - Asymmetric Layout */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 relative z-10">
-        <div className="animate-reveal">
-          <p className="text-[var(--canara-gold)] tracking-[0.3em] uppercase text-xs font-bold mb-4">
-            Kanara Bank Intelligence
+  const scoreVal = results ? Number(results.score) : 0;
+  const riskLabel = scoreVal >= 90 ? 'Very Low' : scoreVal >= 80 ? 'Low' : scoreVal >= 60 ? 'High' : 'Critical';
+  const isAuthentic = scoreVal >= 80;
+  const failedChecks = results ? Object.entries(results.scores || {}).filter(([, v]) => v !== null && Number(v) < 80) : [];
+  const reviewReasons = results ? [
+    ...failedChecks.map(([k]) => SCORE_META[k]?.failMsg || k),
+    ...(results.flags || []),
+    ...(results.reason_codes || []).filter(r => r.startsWith('HIGH')),
+  ] : [];
+
+  // Colours
+  const green = '#22c55e';
+  const amber = '#f59e0b';
+  const red = '#ef4444';
+  const neutral = 'rgba(244,246,248,0.55)';
+
+  // ── Dedicated Error View ───────────────────────────────────────────────────
+  if (systemError && !loading && !results) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center font-['Syne']" style={{ background: 'var(--canara-navy)' }}>
+        <div className="bg-mesh"></div>
+        <div className="z-10 p-8 rounded-lg max-w-lg text-center backdrop-blur-md shadow-[0_0_40px_rgba(239,68,68,0.2)]" style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.3)' }}>
+          <div className="text-red-500 text-5xl mb-6">⚠</div>
+          <h2 className="text-xl text-red-500 font-bold tracking-widest uppercase mb-4">Processing Error</h2>
+          <p className="text-red-400/80 mb-8 leading-relaxed text-sm">
+            The system encountered an error while analyzing the document:
+            <br/><br/>
+            <strong className="text-red-400">{systemError}</strong>
           </p>
-          <h1 className="display-font text-5xl md:text-7xl leading-none">
-            Document <br />
-            <span className="italic text-[var(--canara-gold)]">Forensics</span>
-          </h1>
+          <button 
+            onClick={() => setSystemError(null)}
+            className="px-8 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-500 rounded uppercase tracking-widest text-xs font-bold transition-all"
+          >
+            Acknowledge & Return
+          </button>
         </div>
+      </div>
+    );
+  }
 
-      </header>
-
-      {/* Main Content Area - Diagonal Flow */}
-      <main className="flex-grow relative z-10">
-        {systemError && !loading && (
-          <div className="mb-12 p-6 rounded-lg border-2 border-[var(--canara-error)] bg-[rgba(211,47,47,0.05)] text-[var(--canara-error)] animate-reveal shadow-lg">
-            <h4 className="font-bold tracking-widest uppercase mb-2">Processing Error</h4>
-            <p className="text-sm">{systemError}</p>
+  if (!results && !loading) {
+    return (
+      <div className="min-h-screen relative p-6 md:p-12 lg:p-20 flex flex-col font-['Syne']">
+        <div className="bg-mesh"></div>
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end mb-24 relative z-10">
+          <div className="animate-reveal">
+            <p className="text-[var(--canara-gold)] tracking-[0.3em] uppercase text-xs font-bold mb-4">Kanara Bank Intelligence</p>
+            <h1 className="display-font text-5xl md:text-7xl leading-none">
+              Document <br />
+              <span className="italic text-[var(--canara-gold)]">Forensics</span>
+            </h1>
           </div>
-        )}
-
-        {!results && !loading && (
+        </header>
+        <main className="flex-grow relative z-10">
           <div className="max-w-4xl ml-auto animate-reveal delay-200">
             <div className="flex flex-col md:flex-row gap-4 mb-6">
-              {/* Professional Segmented Control Toggle */}
               <div className="flex bg-[rgba(244,246,248,0.05)] border border-[rgba(244,246,248,0.2)] p-1 w-full md:w-1/3 rounded-lg">
-                <button
-                  onClick={() => setSource('Digital Upload')}
-                  className={`flex-1 text-xs uppercase tracking-widest py-2 px-2 transition-all duration-300 rounded-md ${isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold shadow-lg' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
-                >
-                  Digital Upload
-                </button>
-                <button
-                  onClick={() => setSource('Hard Copy')}
-                  className={`flex-1 text-xs uppercase tracking-widest py-2 px-2 transition-all duration-300 rounded-md ${!isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold shadow-lg' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}
-                >
-                  Scanned Copy
-                </button>
+                <button onClick={() => setSource('Digital Upload')} className={`flex-1 text-xs uppercase tracking-widest py-2 px-2 transition-all duration-300 rounded-md ${isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold shadow-lg' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}>Digital Upload</button>
+                <button onClick={() => setSource('Hard Copy')} className={`flex-1 text-xs uppercase tracking-widest py-2 px-2 transition-all duration-300 rounded-md ${!isDigital ? 'bg-[var(--canara-gold)] text-[var(--canara-navy)] font-bold shadow-lg' : 'text-[rgba(244,246,248,0.6)] hover:text-[var(--canara-light)]'}`}>Scanned Copy</button>
               </div>
-
-              <select 
-                value={documentCategory}
-                onChange={(e) => setDocumentCategory(e.target.value)}
-                className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/3 uppercase tracking-widest text-xs rounded-lg transition-colors"
-              >
+              <select value={documentCategory} onChange={(e) => setDocumentCategory(e.target.value)} className="bg-transparent border border-[rgba(244,246,248,0.2)] text-[var(--canara-light)] p-3 outline-none focus:border-[var(--canara-gold)] w-full md:w-1/3 uppercase tracking-widest text-xs rounded-lg transition-colors">
                 <option value="General" className="bg-[var(--canara-navy)]">General Document</option>
                 <option value="Cheque" className="bg-[var(--canara-navy)]">Cheque</option>
                 <option value="AOD Doc" className="bg-[var(--canara-navy)]">AOD Document</option>
@@ -225,242 +245,326 @@ function DashboardContent() {
                 <option value="Pay Slip" className="bg-[var(--canara-navy)]">Pay Slip</option>
               </select>
               <label className="flex items-center gap-3 cursor-pointer bg-transparent border border-[rgba(244,246,248,0.2)] p-3 w-full md:w-1/3 hover:border-[var(--canara-gold)] transition-colors rounded-lg">
-                <input 
-                  type="checkbox" 
-                  checked={isSigned}
-                  onChange={(e) => setIsSigned(e.target.checked)}
-                  className="accent-[var(--canara-gold)] w-4 h-4 cursor-pointer"
-                />
+                <input type="checkbox" checked={isSigned} onChange={(e) => setIsSigned(e.target.checked)} className="accent-[var(--canara-gold)] w-4 h-4 cursor-pointer" />
                 <span className="uppercase tracking-widest text-xs text-[var(--canara-light)]">Contains Signature</span>
               </label>
             </div>
             <UploadZone source={source} onUpload={handleUpload} loading={loading} />
           </div>
-        )}
+        </main>
+      </div>
+    );
+  }
 
-        {loading && <ScrambleLoader />}
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center font-['Syne']">
+        <div className="bg-mesh"></div>
+        <ScrambleLoader />
+      </div>
+    );
+  }
 
-        {results && !loading && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+  // ── Enterprise Results Layout ──────────────────────────────────────────────
+  return (
+    <div className="h-screen flex flex-col font-['Syne'] overflow-hidden" style={{ background: 'var(--canara-navy)' }}>
+      <div className="bg-mesh"></div>
 
-            {/* Visualizer - Overlapping grids */}
-            <div className="lg:col-span-7 relative animate-reveal delay-100">
-              <div className="relative border border-[rgba(244,246,248,0.1)] p-4 bg-[rgba(0,26,51,0.5)]">
-                {previewUrl && (
-                  <div className="relative w-full aspect-[3/4] max-h-[70vh] overflow-hidden group bg-white/5 rounded-sm">
-                    {fileType === 'application/pdf' ? (
-                      <iframe 
-                        src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                        title="Analyzed Document"
-                        className="w-full h-full border-0 filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 mix-blend-screen pointer-events-none"
-                      />
-                    ) : (
-                      <img
-                        src={previewUrl}
-                        alt="Analyzed Document"
-                        className="w-full h-full object-cover filter grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700 mix-blend-screen"
-                      />
-                    )}
-                    {/* Simulated Heatmap Overlay */}
-                    {results.score < 80 && (
-                      <div className="absolute inset-0 bg-gradient-to-tr from-[rgba(211,47,47,0.3)] to-transparent mix-blend-color-burn pointer-events-none"></div>
-                    )}
+      {/* ── Top Header Bar ─────────────────────────────────────────────────── */}
+      <header style={{
+        borderBottom: '1px solid rgba(244,246,248,0.1)',
+        background: 'rgba(0,26,51,0.95)',
+        backdropFilter: 'blur(12px)',
+        padding: '0 24px',
+        height: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        flexShrink: 0,
+        position: 'relative',
+        zIndex: 20,
+      }}>
+        {/* Left: Brand + filename */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', overflow: 'hidden' }}>
+          <span style={{ color: 'var(--canara-gold)', fontWeight: 700, fontSize: '12px', letterSpacing: '3px', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            KB Intelligence
+          </span>
+          <span style={{ color: 'rgba(244,246,248,0.2)', fontSize: '16px' }}>|</span>
+          <span style={{ color: 'rgba(244,246,248,0.6)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+            {results?.filename || 'Document Analysis'}
+          </span>
+          {results?.file_hash && (
+            <span style={{ color: 'rgba(244,246,248,0.25)', fontSize: '10px', fontFamily: 'monospace', display: 'none' }} className="xl:inline">
+              SHA-256: {results.file_hash.slice(0, 16)}…
+            </span>
+          )}
+        </div>
 
-                    {/* Forensic Grid UI Overlay */}
-                    <div className="absolute top-0 left-0 w-full h-full border border-[var(--canara-gold)] opacity-20 pointer-events-none grid grid-cols-4 grid-rows-4">
-                      {Array.from({ length: 16 }).map((_, i) => (
-                        <div key={i} className="border-[0.5px] border-[rgba(243,146,0,0.2)]"></div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="absolute -bottom-6 -right-6 text-[10rem] display-font text-[rgba(244,246,248,0.03)] leading-none italic pointer-events-none">
-                  Analyzed
-                </div>
-              </div>
+        {/* Right: Action buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          {results?.status === 'flagged' && (
+            <>
+              <button
+                onClick={() => handleReviewDecision('approve')}
+                disabled={reviewLoading}
+                style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', color: green, padding: '8px 16px', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                {reviewLoading ? '…' : 'Approve Override'}
+              </button>
+              <button
+                onClick={() => handleReviewDecision('reject')}
+                disabled={reviewLoading}
+                style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: red, padding: '8px 16px', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s' }}
+              >
+                {reviewLoading ? '…' : 'Reject Document'}
+              </button>
+            </>
+          )}
+          {results?.status === 'verified_override' && (
+            <span style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.35)', color: green, padding: '8px 16px', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px' }}>
+              ✓ Approved by Underwriter
+            </span>
+          )}
+          {results?.status === 'rejected' && (
+            <span style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: red, padding: '8px 16px', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px' }}>
+              ✕ Rejected
+            </span>
+          )}
+          <a
+            href={`http://localhost:8000/document/${results?.document_id}/report`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ background: 'var(--canara-gold)', color: 'var(--canara-navy)', padding: '8px 20px', fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px', textDecoration: 'none', transition: 'all 0.2s' }}
+          >
+            Download Report
+          </a>
+          <button
+            onClick={() => { setResults(null); setPreviewUrl(null); setFileType(null); }}
+            style={{ background: 'transparent', border: '1px solid rgba(244,246,248,0.2)', color: 'rgba(244,246,248,0.7)', padding: '8px 16px', fontSize: '12px', fontWeight: 600, letterSpacing: '1.5px', textTransform: 'uppercase', borderRadius: '6px', cursor: 'pointer', transition: 'all 0.2s' }}
+          >
+            Analyze Another
+          </button>
+        </div>
+      </header>
+
+      {/* ── Two-Panel Body ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* ── LEFT SIDEBAR: Fixed Inspection Summary ────────────────────────── */}
+        <aside style={{
+          width: '380px',
+          flexShrink: 0,
+          borderRight: '1px solid rgba(244,246,248,0.08)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          background: 'rgba(0,10,20,0.6)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+
+          {/* ── Section 1: Overall Status ───────────────────────────────────── */}
+          <div style={{ padding: '24px', borderBottom: '1px solid rgba(244,246,248,0.08)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(244,246,248,0.4)', marginBottom: '16px' }}>
+              Verification Summary
+            </p>
+
+            {/* Status */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '20px' }}>{isAuthentic ? '✓' : '⚠'}</span>
+              <span style={{ fontSize: '20px', fontWeight: 800, color: isAuthentic ? green : red, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                {isAuthentic ? 'Verified Authentic' : 'Tampering Detected'}
+              </span>
             </div>
 
-            {/* Results Panel */}
-            <div className="lg:col-span-5 flex flex-col justify-center animate-reveal delay-300 relative z-20 lg:-ml-12 mt-12 lg:mt-24">
-              <div className="bg-[var(--canara-navy)] border border-[rgba(244,246,248,0.1)] p-8 shadow-2xl rounded-xl">
-                
-                {/* 1. Status & Hierarchy Redesign */}
-                <div className="border-b border-[rgba(244,246,248,0.1)] pb-6 mb-6">
-                  {results.score >= 80 ? (
-                    <div className="text-green-500 font-bold uppercase tracking-widest text-2xl md:text-3xl flex items-center gap-3 mb-2">
-                      <span>✓</span> VERIFIED AUTHENTIC
-                    </div>
-                  ) : (
-                    <div className="text-[var(--canara-error)] font-bold uppercase tracking-widest text-2xl md:text-3xl flex items-center gap-3 mb-2">
-                      <span>⚠️</span> TAMPERING DETECTED
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between items-end mt-6">
-                    <div>
-                      <p className="text-[10px] text-[rgba(244,246,248,0.5)] uppercase tracking-widest mb-1">Manipulation Risk</p>
-                      <p className={`font-bold text-lg uppercase ${results.score >= 80 ? 'text-green-400' : 'text-[var(--canara-error)]'}`}>
-                        {results.score >= 90 ? 'Very Low' : results.score >= 80 ? 'Low' : results.score >= 60 ? 'High' : 'Critical'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] text-[rgba(244,246,248,0.5)] uppercase tracking-widest mb-1">Authenticity Score</p>
-                      <p className="display-font text-3xl text-[var(--canara-light)]">
-                        {Number(results.score).toFixed(0)} <span className="text-base text-[rgba(244,246,248,0.4)]">/ 100</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Human in the loop controls */}
-                {results.status === 'flagged' && (
-                  <div className="mb-6 border border-[#ff0000] p-6 bg-[rgba(255,0,0,0.05)] w-full rounded-sm">
-                    <div className="text-[var(--canara-error)] text-sm font-bold uppercase tracking-widest mb-6">
-                      ⚠️ Requires Manual Underwriter Review
-                    </div>
-                    <div className="flex flex-col md:flex-row gap-4">
-                      <button 
-                        onClick={() => handleReviewDecision('approve')}
-                        disabled={reviewLoading}
-                        className="flex-1 bg-green-600 text-white py-5 px-2 text-sm md:text-base uppercase font-bold tracking-widest hover:bg-green-500 transition-all transform hover:-translate-y-1 hover:shadow-lg rounded"
-                      >
-                        {reviewLoading ? 'Processing...' : 'Approve (Override)'}
-                      </button>
-                      <button 
-                        onClick={() => handleReviewDecision('reject')}
-                        disabled={reviewLoading}
-                        className="flex-1 bg-red-600 text-white py-5 px-2 text-sm md:text-base uppercase font-bold tracking-widest hover:bg-red-500 transition-all transform hover:-translate-y-1 hover:shadow-lg rounded"
-                      >
-                        {reviewLoading ? 'Processing...' : 'Reject Document'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {results.status === 'verified_override' && (
-                  <div className="mb-6 bg-yellow-600 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-yellow-400 w-full rounded-sm">
-                    ✅ Approved by Underwriter
-                  </div>
-                )}
-                {results.status === 'rejected' && (
-                  <div className="mb-6 bg-red-900 text-white px-6 py-4 text-sm font-bold uppercase tracking-widest border border-red-500 w-full rounded-sm">
-                    ❌ Rejected by Underwriter
-                  </div>
-                )}
-
-                {/* 2. Checks Performed Summary */}
-                <div className="mb-8">
-                  <p className="tracking-[0.2em] uppercase text-[10px] text-[var(--canara-gold)] mb-4 font-bold">Checks Performed</p>
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
-                    {results.scores && Object.entries(results.scores).map(([name, value]) => {
-                       const isPass = Number(value) >= 80;
-                       let displayName = name.toUpperCase().replace('_', ' ');
-                       if (name === 'metadata') displayName = 'EXIF FORENSIC';
-                       return (
-                         <div key={`summary-${name}`} className="flex items-center gap-2">
-                           {isPass ? (
-                             <span className="text-green-500">✓</span>
-                           ) : (
-                             <span className="text-[var(--canara-error)]">⚠️</span>
-                           )}
-                           <span className={isPass ? 'text-[var(--canara-light)]' : 'text-[var(--canara-error)] font-bold'}>{displayName}</span>
-                         </div>
-                       )
-                    })}
-                  </div>
-                </div>
-
-                {/* 3. Detailed Metrics with Progress Bars */}
-                <div className="border-t border-[rgba(244,246,248,0.1)] pt-8 space-y-6">
-                  {results.scores && Object.keys(results.scores).length > 0 && (
-                    <details className="group border border-[rgba(244,246,248,0.12)] rounded-lg p-6 open:bg-[rgba(244,246,248,0.02)] transition-colors cursor-pointer">
-                      <summary className="flex justify-between items-center font-bold list-none text-[var(--canara-light)] uppercase tracking-widest text-sm outline-none">
-                        <span>🔍 Detailed Metrics</span>
-                        <span className="transition-transform duration-300 group-open:rotate-180">
-                          <svg fill="none" height="24" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
-                        </span>
-                      </summary>
-                      <div className="mt-8 space-y-8 cursor-default">
-                        {Object.entries(results.scores).map(([name, value]) => {
-                          const numValue = Number(value);
-                          const isPass = numValue >= 80;
-                          
-                          const SCORE_DETAILS = {
-                            ela: { name: 'ELA Analysis', passMsg: 'No compression anomalies detected', failMsg: 'Inconsistent compression detected (potential cloning)' },
-                            edge: { name: 'Edge Detection', passMsg: 'No structural splicing detected', failMsg: 'Sharp unnatural boundaries detected' },
-                            copy_move: { name: 'Copy-Move', passMsg: 'No cloned regions found', failMsg: 'Identical pixel regions detected' },
-                            pdf: { name: 'PDF Forensics', passMsg: 'Standard document structure', failMsg: 'Suspicious PDF editor metadata found' },
-                            ocr: { name: 'OCR & Logic', passMsg: 'Text and math logically consistent', failMsg: 'Inconsistencies in extracted text logic' },
-                            signature: { name: 'Signature Forensics', passMsg: 'Signature strokes appear natural', failMsg: 'Potential digital tracing detected' },
-                            metadata: { name: 'EXIF Forensics', passMsg: 'No editing software signatures found', failMsg: 'Editing software / modified dates detected' }
-                          };
-                          const details = SCORE_DETAILS[name] || { name: name.toUpperCase(), passMsg: 'Check passed', failMsg: 'Check failed or flagged' };
-                          
-                          return (
-                            <div key={`detail-${name}`} className="relative">
-                              <div className="flex justify-between items-end mb-2">
-                                <p className="uppercase tracking-widest text-xs font-bold text-[var(--canara-gold)]">{details.name}</p>
-                                <p className={`display-font text-xl ${isPass ? 'text-[var(--canara-light)]' : 'text-[var(--canara-error)]'}`}>{numValue.toFixed(0)}%</p>
-                              </div>
-                              {/* Progress bar */}
-                              <div className="w-full bg-[rgba(244,246,248,0.1)] h-1.5 rounded overflow-hidden mb-2">
-                                <div 
-                                  className={`h-full ${isPass ? 'bg-[var(--canara-light)]' : 'bg-[var(--canara-error)]'}`} 
-                                  style={{ width: `${Math.max(5, numValue)}%` }}
-                                ></div>
-                              </div>
-                              {/* Meaningful text */}
-                              <p className={`text-[10px] uppercase tracking-widest flex items-center gap-1.5 ${isPass ? 'text-[rgba(244,246,248,0.5)]' : 'text-[var(--canara-error)] opacity-90'}`}>
-                                {isPass ? (
-                                  <><span>✓</span> Passed: {details.passMsg}</>
-                                ) : (
-                                  <><span>⚠️</span> Warning: {details.failMsg}</>
-                                )}
-                              </p>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </details>
-                  )}
-                  
-                  {results.notes && results.notes.length > 0 && (
-                    <div className="mt-4 p-5 rounded bg-[rgba(244,246,248,0.02)] border border-[rgba(244,246,248,0.05)] text-xs text-[rgba(244,246,248,0.5)] leading-relaxed">
-                      <p className="uppercase tracking-widest font-bold text-[10px] text-[var(--canara-gold)] mb-3">System Notes</p>
-                      <ul className="space-y-2">
-                        {results.notes.map((note, idx) => (
-                          <li key={idx} className="flex gap-2"><span className="text-[var(--canara-gold)] opacity-50">-</span> {note}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-12 flex flex-col xl:flex-row gap-4 w-full">
-                  <a
-                    href={`http://localhost:8000/document/${results.document_id}/report`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 bg-[var(--canara-gold)] text-[var(--canara-navy)] text-center font-bold py-5 px-4 text-sm tracking-widest uppercase hover:bg-white hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center rounded"
-                  >
-                    Download Official Report
-                  </a>
-                  <button
-                    onClick={() => {
-                      setResults(null);
-                      setPreviewUrl(null);
-                      setFileType(null);
-                    }}
-                    className="flex-1 border-2 border-[var(--canara-light)] text-[var(--canara-light)] py-5 px-4 text-sm tracking-widest uppercase hover:bg-[var(--canara-light)] hover:text-[var(--canara-navy)] hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center justify-center rounded"
-                  >
-                    Process Another
-                  </button>
-                </div>
+            {/* Score / Risk / Decision grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ background: 'rgba(244,246,248,0.04)', borderRadius: '8px', padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'rgba(244,246,248,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '4px' }}>Overall Score</p>
+                <p style={{ fontSize: '32px', fontWeight: 800, color: isAuthentic ? green : red, lineHeight: 1 }}>
+                  {Number(results.score).toFixed(0)}
+                  <span style={{ fontSize: '14px', fontWeight: 400, color: 'rgba(244,246,248,0.4)' }}> / 100</span>
+                </p>
               </div>
+              <div style={{ background: 'rgba(244,246,248,0.04)', borderRadius: '8px', padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'rgba(244,246,248,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '4px' }}>Risk Level</p>
+                <p style={{ fontSize: '18px', fontWeight: 700, color: scoreVal >= 80 ? green : scoreVal >= 60 ? amber : red }}>
+                  {riskLabel}
+                </p>
+              </div>
+              <div style={{ gridColumn: '1 / -1', background: 'rgba(244,246,248,0.04)', borderRadius: '8px', padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'rgba(244,246,248,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '4px' }}>Decision</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: results.status === 'flagged' ? amber : results.status === 'verified_override' ? green : results.status === 'rejected' ? red : 'rgba(244,246,248,0.8)' }}>
+                  {results.status === 'flagged' ? 'Manual Review Required' :
+                    results.status === 'verified_override' ? 'Approved by Underwriter' :
+                      results.status === 'rejected' ? 'Rejected by Underwriter' : 'Verified — No Review Needed'}
+                </p>
+              </div>
+              {/* Anomaly score if available */}
+              {results.anomaly_score !== null && results.anomaly_score !== undefined && (
+                <div style={{ gridColumn: '1 / -1', background: 'rgba(244,246,248,0.03)', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p style={{ fontSize: '10px', color: 'rgba(244,246,248,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>ML Anomaly Score</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: results.anomaly_score >= 70 ? green : results.anomaly_score >= 40 ? amber : red }}>
+                    {Number(results.anomaly_score).toFixed(1)} / 100
+                  </p>
+                </div>
+              )}
             </div>
-
           </div>
-        )}
-      </main>
+
+
+          {/* ── Section 3: Reason for Review ───────────────────────────────── */}
+          {reviewReasons.length > 0 && (
+            <div style={{ padding: '24px', borderBottom: '1px solid rgba(244,246,248,0.08)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(244,246,248,0.4)', marginBottom: '12px' }}>
+                Reason for Review
+              </p>
+              <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '8px', padding: '12px 14px' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                  <span style={{ color: amber, fontSize: '13px' }}>⚠</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', color: amber }}>Review Required</span>
+                </div>
+                <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {reviewReasons.map((r, i) => (
+                    <li key={i} style={{ fontSize: '12px', color: 'rgba(244,246,248,0.65)', display: 'flex', gap: '8px' }}>
+                      <span style={{ color: amber, flexShrink: 0 }}>•</span>
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* ── Section 2: Authentication Checks ───────────────────────────── */}
+          <div style={{ padding: '24px', borderBottom: '1px solid rgba(244,246,248,0.08)' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(244,246,248,0.4)', marginBottom: '16px' }}>
+              Authentication
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {results.scores && Object.entries(results.scores)
+                .filter(([, v]) => v !== null && v !== undefined)
+                .map(([key, val]) => {
+                  const numVal = Number(val);
+                  const pass = numVal >= 80;
+                  const meta = SCORE_META[key] || { label: key };
+                  const barPct = Math.max(3, numVal);
+                  const barColor = pass ? green : numVal >= 50 ? amber : red;
+                  return (
+                    <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 0', borderBottom: '1px solid rgba(244,246,248,0.04)' }}>
+                      <span style={{ fontSize: '13px', width: '16px', textAlign: 'center', flexShrink: 0, color: pass ? green : amber }}>
+                        {pass ? '✓' : '⚠'}
+                      </span>
+                      <span style={{ flex: 1, fontSize: '13px', color: pass ? 'rgba(244,246,248,0.8)' : 'rgba(244,246,248,0.9)', fontWeight: pass ? 400 : 500 }}>
+                        {meta.label}
+                      </span>
+                      <div style={{ width: '60px', height: '4px', background: 'rgba(244,246,248,0.08)', borderRadius: '2px', overflow: 'hidden', flexShrink: 0 }}>
+                        <div style={{ width: `${barPct}%`, height: '100%', background: barColor, borderRadius: '2px', transition: 'width 0.6s ease' }} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: pass ? 'rgba(244,246,248,0.7)' : barColor, width: '28px', textAlign: 'right', flexShrink: 0 }}>
+                        {numVal.toFixed(0)}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+
+
+          {/* ── Section 4: Detailed Metrics ─────────────────────────────────── */}
+          <div style={{ padding: '24px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '3px', textTransform: 'uppercase', color: 'rgba(244,246,248,0.4)', marginBottom: '16px' }}>
+              Detailed Metrics
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+              {results.scores && Object.entries(results.scores)
+                .filter(([, v]) => v !== null && v !== undefined)
+                .map(([key, val]) => {
+                  const numVal = Number(val);
+                  const pass = numVal >= 80;
+                  const meta = SCORE_META[key] || { label: key, passMsg: 'Passed', failMsg: 'Failed' };
+                  const valueColor = pass ? neutral : numVal >= 50 ? amber : red;
+                  return (
+                    <div key={`dm-${key}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(244,246,248,0.05)' }}>
+                      <span style={{ fontSize: '13px', color: 'rgba(244,246,248,0.5)', fontWeight: 400 }}>{meta.label}</span>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: valueColor, textAlign: 'right', maxWidth: '140px' }}>
+                        {numVal >= 80 ? meta.passMsg : `${numVal.toFixed(0)}% (${meta.failMsg})`}
+                      </span>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Notes */}
+            {results.notes && results.notes.length > 0 && (
+              <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(244,246,248,0.03)', borderRadius: '6px', border: '1px solid rgba(244,246,248,0.06)' }}>
+                <p style={{ fontSize: '10px', color: 'rgba(244,246,248,0.3)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '8px', fontWeight: 700 }}>System Notes</p>
+                {results.notes.map((n, i) => (
+                  <p key={i} style={{ fontSize: '11px', color: 'rgba(244,246,248,0.4)', lineHeight: 1.6 }}>— {n}</p>
+                ))}
+              </div>
+            )}
+
+            {/* SHA-256 */}
+            {results.file_hash && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(244,246,248,0.06)' }}>
+                <p style={{ fontSize: '9px', color: 'rgba(244,246,248,0.25)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px', fontWeight: 700 }}>SHA-256 Fingerprint</p>
+                <p style={{ fontSize: '8px', fontFamily: 'monospace', color: 'rgba(244,246,248,0.2)', wordBreak: 'break-all', lineHeight: 1.6 }}>{results.file_hash}</p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* ── RIGHT PANEL: Document Viewer ──────────────────────────────────── */}
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'rgba(0,5,12,0.7)' }}>
+          {/* Toolbar strip */}
+          <div style={{ height: '44px', borderBottom: '1px solid rgba(244,246,248,0.07)', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px', flexShrink: 0 }}>
+            <span style={{ fontSize: '11px', color: 'rgba(244,246,248,0.3)', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 600 }}>Document Preview</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ fontSize: '11px', color: 'rgba(244,246,248,0.25)' }}>ID #{results?.document_id}</span>
+          </div>
+
+          {/* Document viewer body */}
+          <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '32px', position: 'relative' }}>
+            {/* Forensic grid overlay hint */}
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(243,146,0,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(243,146,0,0.015) 1px, transparent 1px)', backgroundSize: '48px 48px', pointerEvents: 'none' }} />
+
+            {previewUrl ? (
+              <div style={{ width: '100%', maxWidth: '680px', position: 'relative', boxShadow: '0 32px 80px rgba(0,0,0,0.7)', borderRadius: '4px', overflow: 'hidden' }}>
+                {/* Red heatmap tint for flagged docs */}
+                {!isAuthentic && (
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, transparent 60%)', zIndex: 2, pointerEvents: 'none', borderRadius: '4px' }} />
+                )}
+                {/* Forensic scan line animation */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, rgba(243,146,0,0.6), transparent)', zIndex: 3, animation: 'scanLine 3s linear infinite', pointerEvents: 'none' }} />
+                <style>{`@keyframes scanLine { 0% { top: 0; opacity: 1; } 95% { top: 100%; opacity: 1; } 100% { top: 100%; opacity: 0; } }`}</style>
+
+                {fileType === 'application/pdf' ? (
+                  <iframe
+                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                    title="Document Preview"
+                    style={{ width: '100%', minHeight: '80vh', border: 'none', display: 'block', background: '#fff' }}
+                  />
+                ) : (
+                  <img
+                    src={previewUrl}
+                    alt="Document Preview"
+                    style={{ width: '100%', minHeight: '400px', maxHeight: '85vh', display: 'block', objectFit: 'contain', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '4px' }}
+                  />
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(244,246,248,0.2)' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ marginBottom: '12px' }}>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14,2 14,8 20,8" />
+                </svg>
+                <p style={{ fontSize: '13px', letterSpacing: '2px', textTransform: 'uppercase' }}>No preview available</p>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
